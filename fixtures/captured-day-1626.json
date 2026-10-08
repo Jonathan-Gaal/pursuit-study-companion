@@ -1,0 +1,559 @@
+{
+  "capture_note": "Sanitized projection of supplied day 1626 response. Repeated/null fields and external document identifiers omitted; selected prose shortened. False completion flags come from curriculum, not verified individual status reads. No credentials or personal account data.",
+  "day": {
+    "id": 1626,
+    "day_number": 5,
+    "day_date": "2026-09-28T04:00:00.000Z",
+    "cohort": "L2 - September 2026",
+    "daily_goal": "Present your Week 1 clone, then choose and scope the improvement you will build this week."
+  },
+  "timeBlocks": [
+    {
+      "id": 9943,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [],
+          "id": 9878,
+          "deliverable": "Stand-up reflection",
+          "deliverable_type": "text",
+          "task_mode": "basic",
+          "intro": "Quick stand-up before we get into it.",
+          "questions": [
+            "How are you doing today? Rate your mood from 1-10.",
+            "What did you accomplish since the last session?",
+            "What do you hope to accomplish today?",
+            "Any blockers?"
+          ],
+          "task_title": "Daily Stand-up",
+          "task_description": "Quick daily check-in on mood, progress, and blockers.",
+          "task_type": "group",
+          "linked_resources": null,
+          "block_id": 9943
+        }
+      ]
+    },
+    {
+      "id": 9944,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [],
+          "id": 9879,
+          "deliverable": "Feedback report reflection",
+          "deliverable_type": "text",
+          "task_mode": "conversation",
+          "intro": "Your Week 1 feedback report is ready. Head to the Performance tab and read the whole thing before answering the questions below.",
+          "questions": [
+            "What feedback resonated as true about how you showed up last week?",
+            "Based on your report, what is one specific thing you want to do differently this week?"
+          ],
+          "task_title": "Weekly Feedback Report Reflection",
+          "task_description": "AI-generated report on strengths and growth areas from the past week.",
+          "task_type": "individual",
+          "linked_resources": null,
+          "block_id": 9944
+        }
+      ]
+    },
+    {
+      "id": 9945,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [],
+          "id": 9880,
+          "deliverable": "Presentation reflection",
+          "deliverable_type": "text",
+          "task_mode": "conversation",
+          "intro": "Each pair presents their clone to the full L2 cohort: what you built, why you chose it, a live demo, and one thing you would improve. Audience — give real attention, you will be asked what stood out.",
+          "questions": [
+            "How did your presentation go — what landed and what felt unclear?",
+            "Which presentation from the room stood out to you?"
+          ],
+          "task_title": "Week 1 Presentations",
+          "task_description": "Each pair presents their clone to the full L2 cohort.",
+          "task_type": "group",
+          "linked_resources": null,
+          "block_id": 9945
+        }
+      ]
+    },
+    {
+      "id": 9946,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [],
+          "id": 9881,
+          "deliverable": "",
+          "deliverable_type": "none",
+          "task_mode": "basic",
+          "intro": "Take a real break. This afternoon is about picking your next challenge.",
+          "questions": null,
+          "task_title": "Lunch",
+          "task_description": "Midday break.",
+          "task_type": "break",
+          "linked_resources": null,
+          "block_id": 9946
+        }
+      ]
+    },
+    {
+      "id": 9947,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": "Builder can describe RICE, MoSCoW, and the Impact/Effort matrix, explain what each one optimizes for, and identify which context each is best suited to.",
+          "v2_lesson_content": "RICE scores Reach, Impact, Confidence, and Effort: (Reach × Impact × Confidence) / Effort. MoSCoW sorts Must, Should, Could, and Won’t have this time. The Impact/Effort matrix compares expected impact and required effort. No framework replaces judgment.",
+          "v2_skill_tags": [
+            "prioritize-features",
+            "critical-thinking",
+            "reason-from-evidence"
+          ],
+          "id": 9882,
+          "deliverable": "",
+          "deliverable_type": "none",
+          "task_mode": "personalized",
+          "intro": "Most feature ideas are not worth building — the skill is knowing which ones are.",
+          "questions": null,
+          "task_title": "Learn: Feature Prioritization Frameworks",
+          "task_description": "RICE, MoSCoW, and the Impact/Effort matrix — three frameworks for deciding what to build next.",
+          "task_type": "individual",
+          "linked_resources": null,
+          "block_id": 9947
+        }
+      ]
+    },
+    {
+      "id": 9948,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [],
+          "id": 9883,
+          "deliverable": "",
+          "deliverable_type": "none",
+          "task_mode": "basic",
+          "intro": "Now that you have learned about feature prioritization frameworks, take a few minutes to discuss as a table. Which framework do you think gets skipped most often by teams, and why?",
+          "questions": null,
+          "task_title": "Team Debrief",
+          "task_description": "Table teachback and discussion on feature prioritization frameworks.",
+          "task_type": "group",
+          "linked_resources": null,
+          "block_id": 9948
+        }
+      ]
+    },
+    {
+      "id": 9949,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [],
+          "id": 9884,
+          "deliverable": "Improvements wishlist and selection",
+          "deliverable_type": "text",
+          "task_mode": "conversation",
+          "intro": "Using the feedback you got in this morning’s presentations and the frameworks from the teachback, brainstorm 3-5 possible improvements to your own clone with your pair, then pick your top one.",
+          "questions": [
+            "What is on your wishlist?",
+            "Which one are you choosing, and why?"
+          ],
+          "task_title": "Improvements Wishlist & Selection",
+          "task_description": "Brainstorm possible improvements using peer feedback and prioritization frameworks, then pick one.",
+          "task_type": "group",
+          "linked_resources": null,
+          "block_id": 9949
+        }
+      ]
+    },
+    {
+      "id": 9950,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": true,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [
+            "write-prd",
+            "scope-mvp",
+            "define-problem-statement"
+          ],
+          "id": 9885,
+          "deliverable": "Feature PRD Google Doc",
+          "deliverable_type": "link",
+          "task_mode": "conversation",
+          "intro": "Open the Pursuit PRD Template and use the New Feature section. Document the Current User Journey step by step, marking where it breaks down. Fill it in with your pair.",
+          "questions": [
+            "When done, submit your PRD Google Doc link using the assignment button."
+          ],
+          "task_title": "Create Your Feature PRD & Submit to Pathfinder",
+          "task_description": "Draft the improvement PRD using the New Feature template.",
+          "task_type": "group",
+          "linked_resources": null,
+          "block_id": 9950
+        }
+      ]
+    },
+    {
+      "id": 9951,
+      "day_id": 1626,
+      "start_time": "10:00:00",
+      "end_time": "16:00:00",
+      "tasks": [
+        {
+          "deliverable_schema": null,
+          "assessment_id": null,
+          "analyze_deliverable": false,
+          "v2_task_intent": null,
+          "v2_learning_goal": null,
+          "v2_lesson_content": null,
+          "v2_skill_tags": [],
+          "id": 9886,
+          "deliverable": "Retro reflection",
+          "deliverable_type": "text",
+          "task_mode": "conversation",
+          "intro": "Day 5 done. A lot happened — presentations, prioritization, and a new PRD. Take a few minutes to reflect.",
+          "questions": [
+            "Why is your chosen improvement the right one to build this week?"
+          ],
+          "task_title": "Retro",
+          "task_description": "End-of-day reflection on what was built and learned.",
+          "task_type": "individual",
+          "linked_resources": null,
+          "block_id": 9951,
+          "conclusion": "Tomorrow morning is your Cycle 1 baseline assessment, then you are diagramming how the internet actually works. Come ready to focus."
+        }
+      ]
+    }
+  ],
+  "flattenedTasks": [
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": [],
+      "id": 9878,
+      "title": "Daily Stand-up",
+      "description": "Quick daily check-in on mood, progress, and blockers.",
+      "type": "group",
+      "deliverable": "Stand-up reflection",
+      "deliverable_type": "text",
+      "task_mode": "basic",
+      "intro": "Quick stand-up before we get into it.",
+      "questions": [
+        "How are you doing today? Rate your mood from 1-10.",
+        "What did you accomplish since the last session?",
+        "What do you hope to accomplish today?",
+        "Any blockers?"
+      ],
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9878,
+      "task_title": "Daily Stand-up",
+      "task_description": "Quick daily check-in on mood, progress, and blockers.",
+      "task_type": "group",
+      "linked_resources": null,
+      "block_id": 9943
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": [],
+      "id": 9879,
+      "title": "Weekly Feedback Report Reflection",
+      "description": "AI-generated report on strengths and growth areas from the past week.",
+      "type": "individual",
+      "deliverable": "Feedback report reflection",
+      "deliverable_type": "text",
+      "task_mode": "conversation",
+      "intro": "Your Week 1 feedback report is ready. Head to the Performance tab and read the whole thing before answering the questions below.",
+      "questions": [
+        "What feedback resonated as true about how you showed up last week?",
+        "Based on your report, what is one specific thing you want to do differently this week?"
+      ],
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9879,
+      "task_title": "Weekly Feedback Report Reflection",
+      "task_description": "AI-generated report on strengths and growth areas from the past week.",
+      "task_type": "individual",
+      "linked_resources": null,
+      "block_id": 9944
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": [],
+      "id": 9880,
+      "title": "Week 1 Presentations",
+      "description": "Each pair presents their clone to the full L2 cohort.",
+      "type": "group",
+      "deliverable": "Presentation reflection",
+      "deliverable_type": "text",
+      "task_mode": "conversation",
+      "intro": "Each pair presents their clone to the full L2 cohort: what you built, why you chose it, a live demo, and one thing you would improve. Audience — give real attention, you will be asked what stood out.",
+      "questions": [
+        "How did your presentation go — what landed and what felt unclear?",
+        "Which presentation from the room stood out to you?"
+      ],
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9880,
+      "task_title": "Week 1 Presentations",
+      "task_description": "Each pair presents their clone to the full L2 cohort.",
+      "task_type": "group",
+      "linked_resources": null,
+      "block_id": 9945
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": [],
+      "id": 9881,
+      "title": "Lunch",
+      "description": "Midday break.",
+      "type": "break",
+      "deliverable": "",
+      "deliverable_type": "none",
+      "task_mode": "basic",
+      "intro": "Take a real break. This afternoon is about picking your next challenge.",
+      "questions": null,
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9881,
+      "task_title": "Lunch",
+      "task_description": "Midday break.",
+      "task_type": "break",
+      "linked_resources": null,
+      "block_id": 9946
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": "Builder can describe RICE, MoSCoW, and the Impact/Effort matrix, explain what each one optimizes for, and identify which context each is best suited to.",
+      "v2_lesson_content": "RICE scores Reach, Impact, Confidence, and Effort: (Reach × Impact × Confidence) / Effort. MoSCoW sorts Must, Should, Could, and Won’t have this time. The Impact/Effort matrix compares expected impact and required effort. No framework replaces judgment.",
+      "v2_skill_tags": [
+        "prioritize-features",
+        "critical-thinking",
+        "reason-from-evidence"
+      ],
+      "id": 9882,
+      "title": "Learn: Feature Prioritization Frameworks",
+      "description": "RICE, MoSCoW, and the Impact/Effort matrix — three frameworks for deciding what to build next.",
+      "type": "individual",
+      "deliverable": "",
+      "deliverable_type": "none",
+      "task_mode": "personalized",
+      "intro": "Most feature ideas are not worth building — the skill is knowing which ones are.",
+      "questions": null,
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9882,
+      "task_title": "Learn: Feature Prioritization Frameworks",
+      "task_description": "RICE, MoSCoW, and the Impact/Effort matrix — three frameworks for deciding what to build next.",
+      "task_type": "individual",
+      "linked_resources": null,
+      "block_id": 9947
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": [],
+      "id": 9883,
+      "title": "Team Debrief",
+      "description": "Table teachback and discussion on feature prioritization frameworks.",
+      "type": "group",
+      "deliverable": "",
+      "deliverable_type": "none",
+      "task_mode": "basic",
+      "intro": "Now that you have learned about feature prioritization frameworks, take a few minutes to discuss as a table. Which framework do you think gets skipped most often by teams, and why?",
+      "questions": null,
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9883,
+      "task_title": "Team Debrief",
+      "task_description": "Table teachback and discussion on feature prioritization frameworks.",
+      "task_type": "group",
+      "linked_resources": null,
+      "block_id": 9948
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": [],
+      "id": 9884,
+      "title": "Improvements Wishlist & Selection",
+      "description": "Brainstorm possible improvements using peer feedback and prioritization frameworks, then pick one.",
+      "type": "group",
+      "deliverable": "Improvements wishlist and selection",
+      "deliverable_type": "text",
+      "task_mode": "conversation",
+      "intro": "Using the feedback you got in this morning’s presentations and the frameworks from the teachback, brainstorm 3-5 possible improvements to your own clone with your pair, then pick your top one.",
+      "questions": [
+        "What is on your wishlist?",
+        "Which one are you choosing, and why?"
+      ],
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9884,
+      "task_title": "Improvements Wishlist & Selection",
+      "task_description": "Brainstorm possible improvements using peer feedback and prioritization frameworks, then pick one.",
+      "task_type": "group",
+      "linked_resources": null,
+      "block_id": 9949
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": true,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": ["write-prd", "scope-mvp", "define-problem-statement"],
+      "id": 9885,
+      "title": "Create Your Feature PRD & Submit to Pathfinder",
+      "description": "Draft the improvement PRD using the New Feature template.",
+      "type": "group",
+      "deliverable": "Feature PRD Google Doc",
+      "deliverable_type": "link",
+      "task_mode": "conversation",
+      "intro": "Open the Pursuit PRD Template and use the New Feature section. Document the Current User Journey step by step, marking where it breaks down. Fill it in with your pair.",
+      "questions": [
+        "When done, submit your PRD Google Doc link using the assignment button."
+      ],
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9885,
+      "task_title": "Create Your Feature PRD & Submit to Pathfinder",
+      "task_description": "Draft the improvement PRD using the New Feature template.",
+      "task_type": "group",
+      "linked_resources": null,
+      "block_id": 9950
+    },
+    {
+      "deliverable_schema": null,
+      "assessment_id": null,
+      "analyze_deliverable": false,
+      "v2_task_intent": null,
+      "v2_learning_goal": null,
+      "v2_lesson_content": null,
+      "v2_skill_tags": [],
+      "id": 9886,
+      "title": "Retro",
+      "description": "End-of-day reflection on what was built and learned.",
+      "type": "individual",
+      "deliverable": "Retro reflection",
+      "deliverable_type": "text",
+      "task_mode": "conversation",
+      "intro": "Day 5 done. A lot happened — presentations, prioritization, and a new PRD. Take a few minutes to reflect.",
+      "questions": [
+        "Why is your chosen improvement the right one to build this week?"
+      ],
+      "completed": false,
+      "blockTime": "Invalid Date - Invalid Date",
+      "resources": [],
+      "task_id": 9886,
+      "task_title": "Retro",
+      "task_description": "End-of-day reflection on what was built and learned.",
+      "task_type": "individual",
+      "linked_resources": null,
+      "block_id": 9951,
+      "conclusion": "Tomorrow morning is your Cycle 1 baseline assessment, then you are diagramming how the internet actually works. Come ready to focus."
+    }
+  ]
+}

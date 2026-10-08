@@ -1,0 +1,37 @@
+{
+  "name": "pursuit-study-companion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --import tsx src/start.ts",
+    "dev": "node --import tsx src/dashboard/server.ts --dev",
+    "daily": "node --import tsx src/cli.ts",
+    "preflight": "node --import tsx src/preflightCommand.ts",
+    "history:backfill": "node --import tsx src/historyBackfillCommand.ts",
+    "history:inspect": "node --import tsx src/historyInspectCommand.ts",
+    "resources:sync": "node --import tsx src/resourcesSyncCommand.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p dashboard/tsconfig.json",
+    "test": "vitest run",
+    "dashboard:build": "next build dashboard --webpack",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0"
+  },
+  "dependencies": {
+    "next": "^16.3.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-markdown": "^10.1.0"
+  }
+}

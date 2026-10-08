@@ -1,0 +1,95 @@
+{
+  "day": {
+    "date": "2026-09-30",
+    "dayNumber": 42,
+    "title": "Team presentation and delivery"
+  },
+  "timeBlocks": [
+    {
+      "id": 410,
+      "title": "Morning",
+      "start_time": "10:00",
+      "end_time": "12:00",
+      "tasks": []
+    },
+    { "id": 411, "title": "Lunch", "type": "break", "tasks": [] }
+  ],
+  "flattenedTasks": [
+    {
+      "id": 9674,
+      "title": "Stand-up",
+      "type": "conversation",
+      "description": "Check-in: describe your focus and any blocker. Do not supply external evidence.",
+      "deliverable_type": "conversation",
+      "questions": ["What is your next step?"],
+      "persona": null
+    },
+    {
+      "id": 9675,
+      "title": "Team presentation architecture",
+      "type": "learning",
+      "description": "Learn to structure one coherent client narrative across several speakers.",
+      "v2_learning_goal": "Understand presentation flow, handoffs, transitions and presentation timing.",
+      "v2_lesson_content": "Plan an audience-focused argument, align demo moments with claims, and rehearse the transitions together.",
+      "v2_skill_tags": ["communication", "presentation flow"],
+      "v2_competency_criteria": ["Explain the purpose of a handoff"],
+      "completed": true,
+      "resources": null,
+      "blockTime": "Invalid Date - Invalid Date"
+    },
+    {
+      "id": 9677,
+      "title": "Build and deploy",
+      "type": "build",
+      "description": "Deploy the product, verify its key workflow and provide the deployed application URL.",
+      "deliverable": "Working product URL",
+      "deliverable_type": "url",
+      "deliverable_schema": { "required": ["url"] },
+      "analyze_deliverable": true,
+      "v2_skill_tags": ["deployment"],
+      "completed": false
+    },
+    {
+      "id": 9679,
+      "title": "Team storyboard",
+      "type": "project",
+      "description": "Create a team-authored storyboard document connecting the client narrative, demo and handoffs. Submit the real document link.",
+      "deliverable": "Team-created document link",
+      "deliverable_type": "document",
+      "should_analyze": true
+    },
+    {
+      "id": 9680,
+      "title": "Dry-run reflection",
+      "type": "conversation",
+      "description": "Reflect on presentation timing and transitions. Discuss what you would check in a deployment rehearsal; no artifact requested.",
+      "questions": ["Which handoff would you practice next?"],
+      "deliverable_type": "text",
+      "intro": null
+    },
+    {
+      "id": 9681,
+      "title": "Loom walkthrough",
+      "type": "deliverable",
+      "description": "Record a Loom walkthrough of the product and share the real video link.",
+      "deliverable_type": "video",
+      "v2_learning_goal": "Connect the presentation flow to the audience's decision."
+    },
+    {
+      "id": 9682,
+      "title": "Retro",
+      "type": "reflection",
+      "description": "Reflect on how the shared client narrative and handoffs affected presentation clarity. State one next step.",
+      "deliverable_type": "reflection",
+      "conclusion": null
+    },
+    {
+      "id": 9683,
+      "title": "Lunch",
+      "type": "break",
+      "description": "Lunch",
+      "deliverable": null,
+      "blockTime": "Invalid Date - Invalid Date"
+    }
+  ]
+}
