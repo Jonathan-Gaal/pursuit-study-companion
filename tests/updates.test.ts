@@ -101,3 +101,12 @@ it("does not expose transport errors or accept credential-bearing/non-GitHub URL
   ])
     expect(() => githubRepository(value)).toThrow();
 });
+
+it("clears a previously available update when its local source is disconnected", async () => {
+  vi.stubEnv("STUDY_UPSTREAM_URL", "https://github.com/example/study");
+  const service = new UpdateService(await root(null), runner());
+  expect((await service.check()).state).toBe("AVAILABLE");
+  vi.stubEnv("STUDY_UPSTREAM_URL", "");
+  expect((await service.check()).state).toBe("UNCONFIGURED");
+  await expect(service.approve(next)).rejects.toThrow();
+});

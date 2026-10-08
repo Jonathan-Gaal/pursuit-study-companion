@@ -75,7 +75,14 @@ export class UpdateService {
       ) as { repository?: unknown; branch?: unknown };
       const repository =
         process.env.STUDY_UPSTREAM_URL?.trim() || config.repository;
-      if (!repository) return this.status;
+      if (!repository) {
+        this.repository = undefined;
+        return (this.status = {
+          state: "UNCONFIGURED",
+          message:
+            "The publisher has not configured the upstream GitHub repository yet.",
+        });
+      }
       this.repository = githubRepository(repository);
       this.branch =
         typeof config.branch === "string" &&
