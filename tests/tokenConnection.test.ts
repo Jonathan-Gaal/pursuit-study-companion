@@ -72,7 +72,9 @@ it("verifies captured credentials before saving, preserves configuration, uses p
   expect(await readFile(resolve(root, ".env"), "utf8")).toBe(
     `# local\nOTHER=keep\nPURSUIT_TOKEN=${token}\n`,
   );
-  expect((await stat(resolve(root, ".env"))).mode & 0o777).toBe(0o600);
+  // POSIX mode bits do not express Windows ACL permissions.
+  if (process.platform !== "win32")
+    expect((await stat(resolve(root, ".env"))).mode & 0o777).toBe(0o600);
   expect(JSON.stringify(await auth.status())).not.toContain(token);
 });
 it("does not persist rejected, expired or malformed captures", async () => {

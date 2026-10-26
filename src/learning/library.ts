@@ -46,12 +46,27 @@ export async function readLibraryNote(
     const directory = await lstat(resolve(root, "study-notes"));
     if (!directory.isDirectory() || directory.isSymbolicLink())
       throw new Error("Unsafe note directory");
+    const path = resolve(root, `study-notes/${date}.md`);
+    const before = await lstat(path);
+    if (!before.isFile() || before.isSymbolicLink())
+      throw new Error("Unsafe note");
     file = await open(
-      resolve(root, `study-notes/${date}.md`),
+      path,
       constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
     );
     const stat = await file.stat();
-    if (!stat.isFile() || !stat.size || stat.size > 2 * 1024 * 1024)
+    const after = await lstat(path);
+    if (
+      after.isSymbolicLink() ||
+      !after.isFile() ||
+      before.dev !== stat.dev ||
+      before.ino !== stat.ino ||
+      after.dev !== stat.dev ||
+      after.ino !== stat.ino ||
+      !stat.isFile() ||
+      !stat.size ||
+      stat.size > 2 * 1024 * 1024
+    )
       throw new Error("Unsafe note");
     const buffer = Buffer.alloc(2 * 1024 * 1024 + 1);
     let size = 0;

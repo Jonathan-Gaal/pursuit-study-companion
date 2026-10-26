@@ -4,17 +4,13 @@ import {
   savedStudyAdditions,
 } from "../learning/studyExpansion.js";
 import type { IncomingHttpHeaders } from "node:http";
-import { open } from "node:fs/promises";
-import { constants } from "node:fs";
-import { resolve } from "node:path";
 import type { HistoryStore } from "../history/store.js";
-import { safeHistoryText } from "../history/store.js";
 import type { AssignmentProgress } from "../reporting/assignmentProgress.js";
 import { isLocalDashboardRequest } from "./security.js";
 import { linkStudySources } from "../learning/sourceLinks.js";
 import { validDate } from "../pursuit/parser.js";
 import { localCalendarDate } from "../config/calendar.js";
-import { buildLibrary } from "../learning/library.js";
+import { buildLibrary, readLibraryNote } from "../learning/library.js";
 import { resourcesOverview } from "../history/resources.js";
 import {
   obsidianExport,
@@ -316,18 +312,7 @@ export async function dashboardApi(req: Request, deps: Dependencies) {
     if (!day) return response(404, { error: "Day not found." });
     let note: string | null = null;
     try {
-      const file = await open(
-        resolve(deps.root, `study-notes/${date}.md`),
-        constants.O_RDONLY | constants.O_NOFOLLOW,
-      );
-      try {
-        const metadata = await file.stat();
-        if (!metadata.isFile() || metadata.size > 2 * 1024 * 1024)
-          throw new Error("Unsafe note");
-        note = safeHistoryText(await file.readFile("utf8"));
-      } finally {
-        await file.close();
-      }
+      note = await readLibraryNote(deps.root, date);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }

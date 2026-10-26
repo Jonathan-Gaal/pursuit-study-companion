@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 const execute = promisify(execFile);
 const script = (name: string) =>
   fileURLToPath(new URL(`../scripts/${name}`, import.meta.url));
@@ -50,7 +50,9 @@ it("prepares matching versions, requires completed notes and a clean tree, and t
         env,
       });
     expect((await check()).stdout).toContain("v0.1.0");
-    const loader = createRequire(import.meta.url).resolve("tsx");
+    const loader = pathToFileURL(
+      createRequire(import.meta.url).resolve("tsx"),
+    ).href;
     await execute(
       process.execPath,
       ["--import", loader, script("prepare-release.ts"), "patch"],
