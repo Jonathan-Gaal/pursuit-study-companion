@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-10-26
+
+- Reject symlinked study notes explicitly on Windows as well as macOS/Linux.
+- Use portable file URLs in release-command tests and check POSIX permissions only where supported.
+- First publishable stable release after the cross-platform release gate caught Windows failures.
+
 ## 0.1.0 — 2026-10-26
 
 - Read-only Pursuit curriculum sync with locally stored study notes and annotations.

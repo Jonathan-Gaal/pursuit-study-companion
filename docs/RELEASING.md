@@ -21,7 +21,8 @@ Pursuit completion verifies external work or learning mastery.
 
 ## First publication
 
-The initial version is `0.1.0`. Review and commit the source and changelog on `main`.
+The first publishable stable version is `0.1.1`. The `v0.1.0` tag records an
+initial candidate whose Windows checks failed; it was not published as a release. Review and commit the source and changelog on `main`.
 Only source files belong in Git. Credentials, notes, SQLite, personal annotations,
 review progress, generated apps, and runtime files must stay ignored.
 
@@ -33,7 +34,7 @@ npm run dashboard:build
 npm run typecheck
 npm run release:check
 npm run release:tag
-git push origin main v0.1.0
+git push origin main v0.1.1
 ```
 
 On macOS, also run `node --import tsx scripts/start-macos.ts --build-only`.
@@ -59,7 +60,7 @@ review and commit the version files, then:
 
 ```sh
 npm run release:tag
-git push origin main v0.1.1
+git push origin main v0.1.2
 ```
 
 Use the actual version printed by the tagging command. `release:tag` requires a
