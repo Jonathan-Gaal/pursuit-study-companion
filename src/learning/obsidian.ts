@@ -1,3 +1,5 @@
+import { savedStudyAdditions } from "./studyExpansion.js";
+import { withStudyAdditions } from "./studySections.js";
 import type { HistoryStore } from "../history/store.js";
 import { safeHistoryText } from "../history/store.js";
 import { readLibraryNote } from "./library.js";
@@ -39,6 +41,7 @@ export async function obsidianExport(
       warnings.push(`${day.date}: no saved Markdown note.`);
       continue;
     }
+    note = withStudyAdditions(note, await savedStudyAdditions(root, dayDate));
     const saved = history.day(dayDate)!;
     const protectedIds = new Set(
       saved.tasks

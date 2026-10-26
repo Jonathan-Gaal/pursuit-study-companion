@@ -1,3 +1,8 @@
+import type { DashboardAuth } from "./auth.js";
+import {
+  expandStudy,
+  savedStudyAdditions,
+} from "../learning/studyExpansion.js";
 import type { IncomingHttpHeaders } from "node:http";
 import { open } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -22,6 +27,10 @@ interface Request {
   headers: IncomingHttpHeaders;
 }
 interface Dependencies {
+  auth?: Pick<DashboardAuth, "status" | "accept" | "poll">;
+  afterSignIn?: () => void;
+  openSignIn?: () => Promise<void>;
+  catchUp?: () => { running: boolean; message: string; imported: number };
   root: string;
   buildId?: string;
   port: number;
@@ -37,6 +46,72 @@ export async function dashboardApi(req: Request, deps: Dependencies) {
   if (!isLocalDashboardRequest(req.headers.host, req.headers.origin, deps.port))
     return response(403, { error: "Local dashboard only." });
   const url = new URL(req.url ?? "/", `http://127.0.0.1:${deps.port}`);
+  if (req.method === "POST" && url.pathname === "/api/auth/open") {
+    if (
+      url.search ||
+      req.headers["transfer-encoding"] ||
+      Number(req.headers["content-length"] ?? 0) !== 0
+    )
+      return response(400, {
+        error: "Sign-in requires an empty local request.",
+      });
+    if (!deps.openSignIn)
+      return response(409, {
+        error:
+          "Native sign-in is available on macOS. Use local token setup on other platforms.",
+      });
+    try {
+      await deps.openSignIn();
+      return response(200, {
+        message: "Pursuit sign-in opened in the native app.",
+      });
+    } catch {
+      return response(409, {
+        error:
+          "Could not open native sign-in. Run npm run start:macos, then click Sign in to Pursuit in that app.",
+      });
+    }
+  }
+  if (
+    deps.auth &&
+    req.method === "POST" &&
+    ["/api/auth/check", "/api/auth/token"].includes(url.pathname)
+  ) {
+    if (url.search) return response(400, { error: "Unexpected query." });
+    try {
+      if (url.pathname === "/api/auth/check")
+        return response(200, await deps.auth.status(true));
+      if (
+        !/^application\/json\b/i.test(
+          String(req.headers["content-type"] ?? ""),
+        ) ||
+        !deps.readJson
+      )
+        return response(400, { error: "A local JSON request is required." });
+      const body = await deps.readJson();
+      if (
+        !body ||
+        typeof body !== "object" ||
+        Array.isArray(body) ||
+        Object.keys(body).some((k) => k !== "token")
+      )
+        return response(400, { error: "Invalid authentication request." });
+      if (await deps.active())
+        return response(409, {
+          error: "Wait for the active operation to finish.",
+        });
+      const status = await deps.auth.accept(
+        (body as { token?: unknown }).token,
+      );
+      deps.afterSignIn?.();
+      return response(200, status);
+    } catch {
+      return response(400, {
+        error:
+          "Could not verify and save the Pursuit token. Sign in again or check your connection.",
+      });
+    }
+  }
   if (
     ["GET", "POST"].includes(req.method ?? "") &&
     url.pathname === "/api/obsidian"
@@ -163,7 +238,9 @@ export async function dashboardApi(req: Request, deps: Dependencies) {
   }
   if (req.method === "GET" && url.pathname === "/api/status")
     return response(200, {
+      auth: await deps.auth?.poll(),
       buildId: deps.buildId,
+      catchUp: deps.catchUp?.(),
       today: localCalendarDate(new Date(), process.env.PURSUIT_TIME_ZONE),
       running: await deps.active(),
       progress: await deps.progress(),
@@ -197,6 +274,41 @@ export async function dashboardApi(req: Request, deps: Dependencies) {
       });
     }
   }
+  if (req.method === "POST" && url.pathname === "/api/study/expand") {
+    const date = url.searchParams.get("date") ?? "";
+    const section = url.searchParams.get("section") ?? "";
+    if (
+      !validDate(date) ||
+      !/^section-[1-9]\d*$/.test(section) ||
+      url.searchParams.getAll("date").length !== 1 ||
+      url.searchParams.getAll("section").length !== 1 ||
+      [...url.searchParams.keys()].some(
+        (k) => !["date", "section"].includes(k),
+      ) ||
+      req.headers["transfer-encoding"] ||
+      Number(req.headers["content-length"] ?? 0) !== 0
+    )
+      return response(400, {
+        error: "Choose a saved study section with an empty request body.",
+      });
+    if (await deps.active())
+      return response(409, { error: "Wait for the active run to finish." });
+    try {
+      return response(200, {
+        studyAdditions: await expandStudy(
+          deps.root,
+          deps.history,
+          date,
+          section,
+        ),
+      });
+    } catch {
+      return response(409, {
+        error:
+          "Could not add new study detail. Another expansion may be running, the provider may be unavailable, or its output repeated existing material. Your saved notes are unchanged.",
+      });
+    }
+  }
   if (req.method === "GET" && url.pathname === "/api/day") {
     const date = url.searchParams.get("date") ?? "";
     if (!validDate(date)) return response(400, { error: "Invalid date." });
@@ -221,6 +333,7 @@ export async function dashboardApi(req: Request, deps: Dependencies) {
     }
     return response(200, {
       ...day,
+      studyAdditions: await savedStudyAdditions(deps.root, date),
       noteContent: note
         ? linkStudySources(
             note,

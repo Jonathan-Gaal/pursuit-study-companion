@@ -17,7 +17,12 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p dashboard/tsconfig.json",
     "test": "vitest run",
     "dashboard:build": "next build dashboard --webpack",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "start:macos": "node --import tsx scripts/start-macos.ts",
+    "start:browser": "node --import tsx src/start.ts --browser",
+    "release:prepare": "node --import tsx scripts/prepare-release.ts",
+    "release:check": "node scripts/check-release.mjs",
+    "release:tag": "node scripts/tag-release.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

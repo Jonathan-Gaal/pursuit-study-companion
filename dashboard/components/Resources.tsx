@@ -7,15 +7,16 @@ export default function Resources({
   date,
   navigate,
   taskId,
+  view,
 }: {
   date: string;
   navigate: (date: string, taskId?: number) => void;
   taskId?: number | null;
+  view: "resources" | "deliverables";
 }) {
   const [entries, setEntries] = useState<ResourceEntry[]>([]);
   const [error, setError] = useState("");
   const [scope, setScope] = useState("all");
-  const [view, setView] = useState("all");
   const [query, setQuery] = useState("");
   const [revision, setRevision] = useState(0);
   useEffect(() => {
@@ -29,18 +30,17 @@ export default function Resources({
       })
       .catch(() => {
         if (!controller.signal.aborted)
-          setError("Could not load saved resources. Try Refresh.");
+          setError("Could not load the saved list. Try Refresh.");
       });
     return () => controller.abort();
   }, [revision, date]);
   useEffect(() => {
     if (!taskId) return;
     setScope("selected");
-    setView("all");
     setQuery("");
   }, [taskId, date]);
   useEffect(() => {
-    if (!taskId || scope !== "selected" || view !== "all" || query) return;
+    if (!taskId || scope !== "selected" || query) return;
     const element = document.getElementById(`resource-${date}-${taskId}`);
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
     element?.focus({ preventScroll: true });
@@ -60,15 +60,15 @@ export default function Resources({
   return (
     <div className="panel-body resources-panel">
       <div className="section-title">
-        <h2>Resources & deliverables</h2>
+        <h2>{view === "resources" ? "Resources" : "Deliverables"}</h2>
         <button onClick={() => setRevision((value) => value + 1)}>
           Refresh saved list
         </button>
       </div>
       <p className="muted">
-        Assignment materials and manual work, across today and previous saved
-        days. Open a resource in your browser to view it or use its download
-        options.
+        {view === "resources"
+          ? "Assignment reading, reference links, and learning materials across saved days. Open a link to view or download it."
+          : "Manual assignments, submission links, and work expectations across saved days."}
       </p>
       <div className="resource-filters">
         <label>
@@ -79,17 +79,6 @@ export default function Resources({
           >
             <option value="all">All saved days</option>
             <option value="selected">Selected day · {date}</option>
-          </select>
-        </label>
-        <label>
-          Show
-          <select
-            value={view}
-            onChange={(event) => setView(event.target.value)}
-          >
-            <option value="all">Resources & deliverables</option>
-            <option value="deliverables">Deliverables only</option>
-            <option value="resources">Resources only</option>
           </select>
         </label>
         <label>
@@ -108,9 +97,9 @@ export default function Resources({
         </p>
       )}
       <p className="muted">
-        {uniqueResources} resource links ·{" "}
-        {filtered.filter((entry) => entry.assets.manualRequired).length} manual
-        deliverables
+        {view === "resources"
+          ? `${uniqueResources} resource links`
+          : `${filtered.length} manual deliverables`}
       </p>
       {filtered.map((entry) => (
         <article
@@ -127,23 +116,25 @@ export default function Resources({
               >
                 {entry.title}
               </button>
-              {entry.assets.manualRequired && <DeliverableIcon />}
+              {view === "deliverables" && <DeliverableIcon />}
             </h3>
             <small>{entry.date}</small>
           </div>
           <p className="muted">
             {entry.completion === true
-              ? "Pursuit reports complete. This does not verify the actual deliverable."
+              ? view === "deliverables"
+                ? "Pursuit reports complete. This does not verify the actual deliverable."
+                : "Pursuit reports complete."
               : entry.completion === false
                 ? "Pursuit reports incomplete."
                 : "Completion is unknown."}
           </p>
-          <TaskAssetDetails assets={entry.assets} />
+          <TaskAssetDetails assets={entry.assets} section={view} />
         </article>
       ))}
       {!filtered.length && (
         <div className="empty">
-          <h3>No matching resources or deliverables saved</h3>
+          <h3>No matching {view} saved</h3>
           <p>
             Fetch a saved day again to retrieve its full curriculum details.
           </p>

@@ -7,19 +7,20 @@ export type LearningMode = "search" | "review" | "map" | "weekly";
 type Library = Awaited<ReturnType<typeof buildLibrary>>;
 export default function LearningHub({
   mode,
+  query = "",
   date,
   navigate,
   copyRecap,
   recapCopied,
 }: {
   mode: LearningMode;
+  query?: string;
   date: string;
   navigate: (date: string, taskId?: number, line?: number) => void;
   copyRecap: (text: string) => Promise<void>;
   recapCopied: boolean;
 }) {
   const [data, setData] = useState<Library | null>(null);
-  const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -66,7 +67,7 @@ export default function LearningHub({
   const card = due[0];
   const concept = data?.concepts.find((node) => node.id === selectedConcept);
   const titles = {
-    search: "Search your learning",
+    search: "Search results",
     review: "Review mode",
     map: "Concept map",
     weekly: "Weekly learning recap",
@@ -154,19 +155,9 @@ export default function LearningHub({
       ))}
       {mode === "search" && (
         <>
-          <label className="search-field">
-            Search notes, lessons and personal annotations
-            <input
-              type="search"
-              value={query}
-              maxLength={200}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Try validation, deployment or prioritization"
-            />
-          </label>
           <p className="muted">
-            Searches {data?.indexedDays ?? 0} saved days. No platform request or
-            LLM call.
+            Assignments, study notes and your notes from{" "}
+            {data?.indexedDays ?? 0} saved days.
           </p>
           {data?.search.map((result, index) => (
             <button

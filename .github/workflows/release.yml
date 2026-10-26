@@ -1,0 +1,36 @@
+name: Publish stable release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+jobs:
+  checks:
+    uses: ./.github/workflows/check.yml
+  publish:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm run release:check
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+      - name: Require release commit on main
+        run: git merge-base --is-ancestor HEAD origin/main
+      - name: Publish tested release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module -e 'import {readFileSync,writeFileSync} from "node:fs"; const v=process.env.RELEASE_TAG.slice(1); const text=readFileSync("CHANGELOG.md","utf8").split("## "+v+" — ")[1].split(/^## /m)[0]; writeFileSync("/tmp/release-notes.md",text);'
+          gh release create "$RELEASE_TAG" --verify-tag --title "Pursuit Study Companion $RELEASE_TAG" --notes-file /tmp/release-notes.md --latest

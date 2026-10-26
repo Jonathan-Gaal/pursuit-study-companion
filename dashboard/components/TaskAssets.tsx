@@ -8,7 +8,7 @@ export function DeliverableIcon({ onClick }: { onClick?: () => void } = {}) {
       onClick={onClick}
       aria-label={
         onClick
-          ? "View this deliverable in Resources & deliverables"
+          ? "View this deliverable in Deliverables"
           : "Manual deliverable required"
       }
       title="Deliverable required — complete manually"
@@ -30,7 +30,13 @@ export function DeliverableIcon({ onClick }: { onClick?: () => void } = {}) {
     </Tag>
   );
 }
-export default function TaskAssetDetails({ assets }: { assets: TaskAssets }) {
+export default function TaskAssetDetails({
+  assets,
+  section = "all",
+}: {
+  assets: TaskAssets;
+  section?: "all" | "resources" | "deliverables";
+}) {
   if (
     !assets.resources.length &&
     !assets.submissionLinks.length &&
@@ -39,12 +45,12 @@ export default function TaskAssetDetails({ assets }: { assets: TaskAssets }) {
     return null;
   return (
     <div className="task-assets">
-      {assets.manualRequired && (
+      {section !== "resources" && assets.manualRequired && (
         <p className="manual-work-note">
-          Complete this assignment manually. Automation skips it.
+          Complete this assignment manually in Pursuit.
         </p>
       )}
-      {assets.requirements.length > 0 && (
+      {section !== "resources" && assets.requirements.length > 0 && (
         <details className="deliverable-expectations">
           <summary>Required deliverable & expectations</summary>
           <ul>
@@ -54,7 +60,7 @@ export default function TaskAssetDetails({ assets }: { assets: TaskAssets }) {
           </ul>
         </details>
       )}
-      {assets.submissionLinks.length > 0 && (
+      {section !== "resources" && assets.submissionLinks.length > 0 && (
         <div className="asset-link-list">
           <strong>Submit your work</strong>
           {assets.submissionLinks.map((link) => (
@@ -70,7 +76,7 @@ export default function TaskAssetDetails({ assets }: { assets: TaskAssets }) {
           ))}
         </div>
       )}
-      {assets.resources.length > 0 && (
+      {section !== "deliverables" && assets.resources.length > 0 && (
         <div className="asset-link-list">
           <strong>Resources</strong>
           {assets.resources.map((link) => (

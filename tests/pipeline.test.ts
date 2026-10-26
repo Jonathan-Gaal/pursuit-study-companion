@@ -473,7 +473,7 @@ describe("secret handling", () => {
   it("redacts explicit tokens, bearer credentials and JWT-shaped values", () => {
     const secret = ["synthetic", "credential", "for", "redaction"].join("-");
     const safe = redact(
-      `${secret} Bearer placeholder-token PURSUIT_TOKEN=placeholder-token eyJhbGciOiJIUzI1NiJ9.cGF5bG9hZA.c2lnbmF0dXJl`,
+      `${secret} Bearer placeholder-token PURSUIT_TOKEN=placeholder-token ${["eyJhbGciOiJIUzI1NiJ9", "cGF5bG9hZA", "c2lnbmF0dXJl"].join(".")}`,
       [secret],
     );
     expect(safe).not.toContain(secret);

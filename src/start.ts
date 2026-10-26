@@ -7,6 +7,23 @@ if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("Invalid local port");
 const url = `http://127.0.0.1:${port}`;
 function openBrowser() {
+  if (process.platform === "darwin" && !process.argv.includes("--browser")) {
+    const child = spawn(
+      process.execPath,
+      ["--import", "tsx", resolve("scripts/start-macos.ts")],
+      { stdio: "inherit", env: process.env },
+    );
+    child.on("error", () =>
+      console.error("Could not open the macOS app. Use npm run start:browser."),
+    );
+    child.on("exit", (code) => {
+      if (code)
+        console.error(
+          "Could not build the macOS app. Install Xcode Command Line Tools or use npm run start:browser.",
+        );
+    });
+    return;
+  }
   const program =
     process.platform === "darwin"
       ? "open"

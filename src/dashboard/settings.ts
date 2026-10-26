@@ -25,10 +25,14 @@ export async function saveSettings(root: string, raw: unknown) {
     )
   )
     throw new Error("Invalid configuration");
-  const token = value.token === "" ? process.env.PURSUIT_TOKEN : value.token;
+  const token =
+    value.token === ""
+      ? process.env.PURSUIT_TOKEN === "your_token_here"
+        ? ""
+        : (process.env.PURSUIT_TOKEN ?? "")
+      : value.token;
   if (
     typeof token !== "string" ||
-    !token ||
     token === "your_token_here" ||
     token.length > 16000 ||
     /[\s\x00]/.test(token)
@@ -57,7 +61,22 @@ export async function saveSettings(root: string, raw: unknown) {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  // Preserve locally configured study-only AI options when saving account settings.
+  // Never migrate assignment automation flags into this app.
+  const studyAI = Object.fromEntries(
+    [
+      "GEMINI_API_KEY",
+      "GEMINI_MODEL",
+      "GEMINI_FREE_TIER_CONFIRMED",
+      "GROQ_API_KEY",
+      "GROQ_MODEL",
+      "GROQ_FREE_TIER_CONFIRMED",
+    ]
+      .filter((key) => process.env[key] !== undefined)
+      .map((key) => [key, process.env[key]!]),
+  );
   const values = {
+    ...studyAI,
     PURSUIT_TOKEN: token,
     PURSUIT_COHORT: cohort,
     PURSUIT_DAY_IDS: ids,

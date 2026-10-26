@@ -13,7 +13,16 @@ const record = async (state, message) =>
     { mode: 0o600 },
   );
 const args = process.argv.slice(2);
-const [parent, expected, target, repository, branch, npmCli] = args;
+const [
+  parent,
+  expected,
+  target,
+  repository,
+  branch,
+  npmCli,
+  releaseTag,
+  version,
+] = args;
 const git = async (...gitArgs) =>
   (
     await execute(
@@ -48,7 +57,9 @@ try {
     ) ||
     !/^[A-Za-z0-9][A-Za-z0-9_/-]{0,100}$/.test(branch ?? "") ||
     branch.includes("..") ||
-    !npmCli?.endsWith("npm-cli.js")
+    !npmCli?.endsWith("npm-cli.js") ||
+    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version ?? "") ||
+    releaseTag !== `v${version}`
   )
     throw new Error("Invalid update");
   await record("WAITING", "Waiting for the app to close before updating.");
@@ -77,11 +88,27 @@ try {
     repository,
     `refs/heads/${branch}`,
   );
+  const branchHead = await git("rev-parse", "FETCH_HEAD");
+  await git(
+    "fetch",
+    "--no-tags",
+    "--no-recurse-submodules",
+    "--",
+    repository,
+    `refs/tags/${releaseTag}`,
+  );
   if (
-    (await git("rev-parse", "FETCH_HEAD")) !== target ||
+    (await git("rev-parse", "FETCH_HEAD^{commit}")) !== target ||
+    (await git("merge-base", target, branchHead)) !== target ||
     (await git("merge-base", expected, target)) !== expected
   )
     throw new Error("Upstream changed");
+  const remotePackage = JSON.parse(await git("show", `${target}:package.json`));
+  if (
+    remotePackage.name !== "pursuit-study-companion" ||
+    remotePackage.version !== version
+  )
+    throw new Error("Release version changed");
   // Block upstream commits that would begin tracking local student data.
   const tracked = (await git("ls-tree", "-r", "--name-only", target)).split(
     "\n",
@@ -111,6 +138,22 @@ try {
     maxBuffer: 16 * 1024 * 1024,
     env: { ...process.env, NEXT_TELEMETRY_DISABLED: "1" },
   });
+  if (process.platform === "darwin") {
+    await record(
+      "BUILDING_NATIVE",
+      "Building the updated macOS sign-in helper.",
+    );
+    await execute(
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        resolve(root, "scripts/start-macos.ts"),
+        "--build-only",
+      ],
+      { cwd: root, timeout: 300000, maxBuffer: 16 * 1024 * 1024 },
+    );
+  }
   await record("RESTARTING", "Update built. Restarting the app.");
   await unlink(resolve(root, ".runtime/study-run.lock"));
   await unlink(resolve(root, ".runtime/update.lock"));
@@ -153,7 +196,7 @@ try {
   if (!ready) throw new Error("Updated app did not become ready");
   await record(
     "UPDATED",
-    "Update installed and the app restarted successfully.",
+    `Version ${version} installed and the app restarted successfully.${process.platform === "darwin" ? " Reopen the macOS app to load native window changes." : ""}`,
   );
 } catch {
   await mkdir(resolve(root, ".runtime"), { recursive: true });

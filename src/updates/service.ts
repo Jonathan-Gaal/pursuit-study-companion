@@ -1,3 +1,5 @@
+import { stableVersion, compareVersions } from "./version.js";
+import { latestRelease, type ReleaseLookup } from "./releases.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
@@ -10,6 +12,9 @@ export type UpdateState = {
   current?: string;
   target?: string;
   checkedAt?: string;
+  installedVersion?: string;
+  availableVersion?: string;
+  releaseTag?: string;
 };
 export type GitRun = (args: string[]) => Promise<string>;
 export function githubRepository(value: unknown): string {
@@ -39,6 +44,7 @@ export class UpdateService {
   constructor(
     readonly root: string,
     git?: GitRun,
+    private readonly release: ReleaseLookup = latestRelease,
   ) {
     this.git =
       git ??
@@ -69,7 +75,12 @@ export class UpdateService {
   async check(): Promise<UpdateState> {
     if (this.checking) return this.status;
     this.checking = true;
+    let installedVersion: string | undefined;
     try {
+      installedVersion = stableVersion(
+        JSON.parse(await readFile(resolve(this.root, "package.json"), "utf8"))
+          .version,
+      );
       const config = JSON.parse(
         await readFile(resolve(this.root, "updates.json"), "utf8"),
       ) as { repository?: unknown; branch?: unknown };
@@ -78,6 +89,7 @@ export class UpdateService {
       if (!repository) {
         this.repository = undefined;
         return (this.status = {
+          installedVersion,
           state: "UNCONFIGURED",
           message:
             "The publisher has not configured the upstream GitHub repository yet.",
@@ -102,6 +114,28 @@ export class UpdateService {
           message:
             "Use the release branch with no local source changes before updating.",
           current,
+          installedVersion,
+        });
+      const release = await this.release(this.repository);
+      if (!release)
+        return (this.status = {
+          state: "CURRENT",
+          installedVersion,
+          current,
+          checkedAt: new Date().toISOString(),
+          message: "No published stable release is available yet.",
+        });
+      if (release.tag !== `v${stableVersion(release.version)}`)
+        throw new Error("Release tag mismatch");
+      const versionOrder = compareVersions(release.version, installedVersion);
+      if (versionOrder < 0)
+        return (this.status = {
+          state: "CURRENT",
+          installedVersion,
+          current,
+          checkedAt: new Date().toISOString(),
+          message:
+            "Your installed version is newer than the published stable release.",
         });
       await this.git([
         "fetch",
@@ -111,7 +145,31 @@ export class UpdateService {
         this.repository,
         `refs/heads/${this.branch}`,
       ]);
-      const target = hash(await this.git(["rev-parse", "FETCH_HEAD"]));
+      const branchHead = hash(await this.git(["rev-parse", "FETCH_HEAD"]));
+      await this.git([
+        "fetch",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "--",
+        this.repository,
+        `refs/tags/${release.tag}`,
+      ]);
+      const target = hash(await this.git(["rev-parse", "FETCH_HEAD^{commit}"]));
+      if ((await this.git(["merge-base", target, branchHead])) !== target)
+        throw new Error("Release outside canonical branch");
+      const remotePackage = JSON.parse(
+        await this.git(["show", `${target}:package.json`]),
+      );
+      if (
+        remotePackage.name !== "pursuit-study-companion" ||
+        remotePackage.version !== release.version
+      )
+        throw new Error("Release/package mismatch");
+      if (
+        (versionOrder === 0 && target !== current) ||
+        (versionOrder > 0 && target === current)
+      )
+        throw new Error("Version/commit mismatch");
       const common = await this.git(["merge-base", current, target]);
       if (common !== current)
         return (this.status = {
@@ -120,19 +178,24 @@ export class UpdateService {
             "Your source history differs from upstream. Resolve your Git changes manually; no files were replaced.",
           current,
           target,
+          installedVersion,
         });
       return (this.status = {
         state: current === target ? "CURRENT" : "AVAILABLE",
         current,
         target,
+        installedVersion,
+        availableVersion: release.version,
+        releaseTag: release.tag,
         checkedAt: new Date().toISOString(),
         message:
           current === target
-            ? "You have the current upstream version."
-            : "An upstream update is available.",
+            ? `Version ${installedVersion} is up to date.`
+            : `Version ${release.version} is available.`,
       });
     } catch {
       return (this.status = {
+        installedVersion,
         state: "ERROR",
         message:
           "Could not check GitHub. Check Git, network access and the repository configuration. Your installed app is unchanged.",
@@ -157,6 +220,8 @@ export class UpdateService {
       current: hash(checked.current),
       repository: this.repository,
       branch: this.branch,
+      releaseTag: checked.releaseTag!,
+      version: checked.availableVersion!,
     };
   }
 }

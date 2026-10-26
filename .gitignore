@@ -21,3 +21,10 @@ dashboard/.next/
 
 .runtime/
 .history-backfill/
+
+# Local AI study expansions and generation locks
+study-notes/*.expansions.json
+study-notes/*.expansion.lock
+
+# Generated native app
+/Pursuit Study Companion.app/

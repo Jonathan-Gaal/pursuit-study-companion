@@ -1,5 +1,8 @@
+import { DashboardAuth } from "./auth.js";
+import { DashboardCatchUp } from "./catchUp.js";
 import { createServer } from "node:http";
-import { spawn } from "node:child_process";
+import { promisify } from "node:util";
+import { execFile, spawn } from "node:child_process";
 import {
   readFile,
   mkdir,
@@ -44,6 +47,7 @@ if ((await lstat(runtime)).isSymbolicLink())
   throw new Error("Unsafe runtime directory");
 const instanceId = `${process.pid}-${Date.now()}`;
 const history = new HistoryStore(root);
+const auth = new DashboardAuth(root, history);
 await backfillSavedResources(root, history);
 const dev = process.argv.includes("--dev");
 const app = next({
@@ -59,8 +63,8 @@ const updates = new UpdateService(root);
 void updates.check(); // Opening the app checks upstream, but never applies code automatically.
 let running: string | null = null;
 let updating = false;
-async function busy() {
-  if (running || updating) return true;
+async function busy(skipSync = false) {
+  if (running || updating || (!skipSync && catchUp.status.running)) return true;
   for (const name of ["study-run.lock", "dashboard-run.lock", "update.lock"]) {
     try {
       await lstat(resolve(runtime, name));
@@ -132,6 +136,7 @@ async function study(
   })();
   return true;
 }
+const catchUp = new DashboardCatchUp(root, history, () => busy(true));
 const server = createServer(async (req, res) => {
   if (!isLocalDashboardRequest(req.headers.host, req.headers.origin, port)) {
     res.writeHead(403);
@@ -238,6 +243,8 @@ const server = createServer(async (req, res) => {
             approved.repository,
             approved.branch,
             npmCli,
+            approved.releaseTag,
+            approved.version,
           ],
           {
             cwd: root,
@@ -326,11 +333,43 @@ const server = createServer(async (req, res) => {
       );
       return;
     }
+    if (req.method === "POST" && url.pathname === "/api/sync") {
+      if (
+        url.search ||
+        req.headers["transfer-encoding"] ||
+        Number(req.headers["content-length"] ?? 0) !== 0
+      ) {
+        json(400, { error: "Sync requires an empty request." });
+        return;
+      }
+      if (await busy()) {
+        json(409, { error: "Wait for the active operation to finish." });
+        return;
+      }
+      void catchUp.request(true);
+      json(202, { status: "SYNCING" });
+      return;
+    }
     const result = await dashboardApi(req, {
       root,
       port,
       history,
+      auth,
+      openSignIn:
+        process.platform === "darwin"
+          ? async () => {
+              await promisify(execFile)("/usr/bin/open", [
+                resolve(root, "Pursuit Study Companion.app"),
+                "--args",
+                "--sign-in",
+              ]);
+            }
+          : undefined,
+      afterSignIn: () => {
+        void catchUp.request(true);
+      },
       buildId: dev ? "development" : "production",
+      catchUp: () => catchUp.status,
       active: async () => ((await busy()) ? (running ?? "operation") : null),
       progress: async () => null,
       start: (_kind, date) => study(date),

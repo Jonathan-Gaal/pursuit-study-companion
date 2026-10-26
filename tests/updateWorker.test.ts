@@ -32,6 +32,10 @@ it.skipIf(process.platform === "win32")(
         ".env\nstate/\nstudy-notes/\n.runtime/\n",
       );
       await writeFile(resolve(release, "version.txt"), "first release");
+      await writeFile(
+        resolve(release, "package.json"),
+        JSON.stringify({ name: "pursuit-study-companion", version: "0.1.0" }),
+      );
       await git(["add", "."]);
       const commit = () =>
         git([
@@ -47,9 +51,14 @@ it.skipIf(process.platform === "win32")(
       const old = await git(["rev-parse", "HEAD"]);
       await git(["clone", release, student], folder);
       await writeFile(resolve(release, "version.txt"), "second release");
+      await writeFile(
+        resolve(release, "package.json"),
+        JSON.stringify({ name: "pursuit-study-companion", version: "0.1.1" }),
+      );
       await git(["add", "."]);
       await commit();
       const target = await git(["rev-parse", "HEAD"]);
+      await git(["tag", "v0.1.1"]);
       await mkdir(resolve(student, "study-notes"));
       await mkdir(resolve(student, ".runtime"));
       await writeFile(
@@ -84,6 +93,8 @@ it.skipIf(process.platform === "win32")(
             "https://github.com/example/study",
             "main",
             npmCli,
+            "v0.1.1",
+            "0.1.1",
           ],
           {
             cwd: student,

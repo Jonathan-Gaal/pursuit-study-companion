@@ -9,6 +9,14 @@
 * {
   box-sizing: border-box;
 }
+html {
+  scrollbar-gutter: stable;
+}
+@supports not (scrollbar-gutter: stable) {
+  html {
+    overflow-y: scroll;
+  }
+}
 body {
   margin: 0;
   background: var(--paper);
@@ -146,7 +154,8 @@ a:focus-visible {
   padding: 0 12px;
 }
 main {
-  flex: 1;
+  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
   padding: 0 42px 25px;
   max-width: 1500px;
@@ -1003,19 +1012,37 @@ button.deliverable-indicator:hover,
   letter-spacing: 0;
   font-weight: 500;
 }
-.brand {
-  display: block;
-  margin-bottom: 24px;
-}
+
 .study-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
-  margin: 20px 0;
+  gap: 22px;
+  margin: 0;
+  padding: 0 24px;
+}
+.study-tabs > button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 20px;
+}
+.panel {
+  width: 100%;
+  min-width: 0;
+  min-height: 360px;
+  overflow-wrap: anywhere;
+  overflow-anchor: none;
+}
+.panel > .panel-body {
+  min-width: 0;
 }
 .study-tabs [aria-selected="true"] {
-  background: var(--accent);
-  color: white;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 500;
 }
 .study-alert,
 .study-notice {
@@ -1089,4 +1116,138 @@ button.deliverable-indicator:hover,
   .heading-actions {
     margin-top: 16px;
   }
+}
+
+.study-expansion {
+  margin: 1.5rem 0 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #ddd);
+}
+.study-expansion > p {
+  font-size: 0.85rem;
+}
+.study-addition {
+  margin-bottom: 1.5rem;
+}
+
+.assignment-search {
+  margin: 0 0 16px;
+}
+.assignment-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+.assignment-search input:focus-visible {
+  outline: 2px solid #4242ea;
+  outline-offset: 2px;
+}
+
+.pursuit-connection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 20px;
+  margin: 20px 0;
+  border: 1px solid #9a791b;
+  border-left: 5px solid #9a791b;
+  border-radius: 12px;
+  background: #fffbed;
+}
+.pursuit-connection p {
+  margin: 5px 0 0;
+  font-size: 14px;
+}
+.pursuit-connection.disconnected {
+  border-color: #b42318;
+  background: #fff1f0;
+  color: #8b1c13;
+}
+.pursuit-connection.connected {
+  border-color: #267347;
+  background: #f0faf4;
+  color: #19562f;
+}
+
+.study-tabs > button {
+  min-height: 58px;
+  font-weight: 500;
+}
+.panel .task details p {
+  max-width: 760px;
+  line-height: 1.7;
+}
+.heading .actions {
+  max-width: 440px;
+}
+@media (max-width: 1150px) {
+  .heading .actions {
+    max-width: none;
+  }
+}
+
+.companion-wordmark {
+  display: block;
+  font-size: 25px;
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+}
+.companion-wordmark small {
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  margin-top: 10px;
+}
+
+.topbar {
+  gap: 16px;
+}
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+.settings-button[aria-pressed="true"] {
+  color: var(--accent);
+  background: #eeedff;
+  border-color: #c7d2fe;
+}
+@media (max-width: 480px) {
+  .topbar {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+  .topbar-controls {
+    gap: 6px;
+  }
+  .topbar .local-badge {
+    padding: 6px 8px;
+  }
+}
+
+.companion-wordmark .pursuit-word {
+  display: block;
+  color: #2563eb;
+}
+.companion-wordmark .companion-name {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  letter-spacing: -0.3px;
 }

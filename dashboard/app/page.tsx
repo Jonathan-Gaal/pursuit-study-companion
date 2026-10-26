@@ -1,11 +1,21 @@
 "use client";
+import { dateLabel } from "../lib/dateLabel";
+import {
+  studySections,
+  withStudyAdditions,
+} from "../../src/learning/studySections";
+import type { SavedStudyAddition } from "../../src/learning/studyExpansion";
+import StudyExpansion from "../components/StudyExpansion";
+import { sequenceDays, type DaySort } from "../lib/daySequence";
+import { relativeDay } from "../lib/relativeDay";
+import { pursuitDayUrl } from "../lib/pursuitLink";
 import { useCallback, useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import LearningHub, { type LearningMode } from "../components/LearningHub";
 import Annotations from "../components/Annotations";
 import Resources from "../components/Resources";
 import Obsidian from "../components/Obsidian";
-import TaskAssetDetails from "../components/TaskAssets";
+import TaskAssetDetails, { DeliverableIcon } from "../components/TaskAssets";
 import { parseTaskAssets } from "../../src/learning/taskAssets";
 import { studyTarget, assignmentAtHeading } from "../lib/studyTarget";
 import type { UpdateState } from "../../src/updates/service";
@@ -24,12 +34,17 @@ type Task = {
   protected_kind: string | null;
   classification: string | null;
   content: string | null;
+  concept_ids?: string | null;
+  cohort?: string | null;
   assets_json?: string | null;
 };
 type Run = {
   id: string;
   date: string | null;
   status: string;
+  kind?: string;
+  source?: string;
+  finished_at?: string | null;
   started_at: string;
   output: string | null;
 };
@@ -37,8 +52,11 @@ type Detail = Summary & {
   tasks: Task[];
   runs: Run[];
   noteContent: string | null;
+  studyAdditions?: SavedStudyAddition[];
 };
 type Status = {
+  auth?: { state: string; message: string };
+  catchUp?: { running: boolean; message: string; imported: number };
   today: string;
   running: string | null;
   days: Summary[];
@@ -56,10 +74,13 @@ type Tab =
   | "notes"
   | "assignments"
   | "resources"
+  | "deliverables"
   | "obsidian"
   | "runs"
   | "settings"
   | LearningMode;
+
+const label = (text: string) => text.replaceAll("_", " ").toLowerCase();
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(path, {
     method: body === undefined ? "GET" : "POST",
@@ -87,12 +108,15 @@ export default function StudyCompanion() {
   const [date, setDate] = useState("");
   const [followToday, setFollowToday] = useState(true);
   const [day, setDay] = useState<Detail | null>(null);
-  const [tab, setTab] = useState<Tab>("notes");
+  const [daySort, setDaySort] = useState<DaySort>("newest");
+  const [tab, setTab] = useState<Tab>("assignments");
   const [lesson, setLesson] = useState<number | null>(null);
   const [targetTask, setTargetTask] = useState<number | null>(null);
   const [targetLine, setTargetLine] = useState<number | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [token, setToken] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [signInMessage, setSignInMessage] = useState("");
   const [updates, setUpdates] = useState<UpdateState | null>(null);
   const [updating, setUpdating] = useState(false);
   const [pending, setPending] = useState(false);
@@ -119,14 +143,50 @@ export default function StudyCompanion() {
     }
   }, [updating, status?.instance]);
   useEffect(() => {
+    const connected = () => {
+      void request<Settings>("/api/settings").then(setSettings);
+      void refresh();
+      setNotice("Connected to Pursuit. Sync started.");
+    };
+    window.addEventListener("pursuit-auth-updated", connected);
+    return () => window.removeEventListener("pursuit-auth-updated", connected);
+  }, [refresh]);
+  useEffect(() => {
+    try {
+      const savedSort = localStorage.getItem("pursuit-day-sort");
+      if (savedSort === "oldest" || savedSort === "newest")
+        setDaySort(savedSort);
+    } catch {}
     const params = new URLSearchParams(window.location.search);
     const savedDate = params.get("date");
     if (savedDate && /^\d{4}-\d{2}-\d{2}$/.test(savedDate)) {
       setDate(savedDate);
       setFollowToday(false);
     }
+    const assignment = params.get("assignment");
+    if (assignment && /^[1-9]\d*$/.test(assignment)) {
+      setTargetTask(Number(assignment));
+      setTab("assignments");
+    }
     const task = params.get("lesson");
-    if (task && /^[1-9]\d*$/.test(task)) setLesson(Number(task));
+    if (task && /^[1-9]\d*$/.test(task)) {
+      setLesson(Number(task));
+      setTab("notes");
+    }
+    const studyTask = params.get("studyTask");
+    const studyLine = params.get("studyLine");
+    if (studyTask && /^[1-9]\d*$/.test(studyTask)) {
+      setTargetTask(Number(studyTask));
+      setTab("notes");
+    }
+    if (studyLine && /^[1-9]\d*$/.test(studyLine)) {
+      setTargetLine(Number(studyLine));
+      setTab("notes");
+    }
+    if (params.get("annotation") === "1") {
+      setTargetLine(0);
+      setTab("notes");
+    }
     void request<Settings>("/api/settings")
       .then((value) => {
         setSettings(value);
@@ -176,9 +236,9 @@ export default function StudyCompanion() {
   const current = day?.date === date ? day : null;
   useEffect(() => {
     const id =
-      targetLine === 0
+      tab === "notes" && targetLine === 0
         ? "personal-annotations"
-        : targetLine
+        : tab === "notes" && targetLine
           ? `study-heading-${targetLine}`
           : targetTask && current?.noteContent && tab === "notes"
             ? studyTarget(current.noteContent, targetTask)
@@ -214,7 +274,7 @@ export default function StudyCompanion() {
     window.history.replaceState(
       null,
       "",
-      `/?date=${selected}${task ? `&assignment=${task}` : ""}`,
+      `/?date=${selected}${task ? `&assignment=${task}` : line === 0 ? "&annotation=1" : line ? `&studyLine=${line}` : ""}`,
     );
   }
   async function copy(text: string) {
@@ -226,81 +286,279 @@ export default function StudyCompanion() {
   const selectedLesson = current?.tasks.find(
     (task) => task.task_id === lesson && !task.protected_kind,
   );
+  const viewingToday = !!date && date === status?.today;
+  const platformDayUrl = current ? pursuitDayUrl(current) : null;
+  const runs = current
+    ? [...current.runs, ...(status?.runs.filter((run) => !run.date) ?? [])]
+    : (status?.runs ?? []);
+  function changeDaySort(order: DaySort) {
+    setDaySort(order);
+    try {
+      localStorage.setItem("pursuit-day-sort", order);
+    } catch {}
+  }
+  function signIn() {
+    const native = (
+      window as Window & {
+        webkit?: {
+          messageHandlers?: {
+            connectPursuit?: { postMessage: (value: string) => void };
+          };
+        };
+      }
+    ).webkit?.messageHandlers?.connectPursuit;
+    setSignInMessage("Opening the Pursuit sign-in window…");
+    if (native) native.postMessage("connect");
+    else
+      void action("/api/auth/open")
+        .then((result) => setSignInMessage(result.message))
+        .catch((error) => setSignInMessage(error.message));
+  }
+  function refreshDay() {
+    return perform(
+      () => action(`/api/day/refresh?date=${date}`),
+      "Refreshing saved curriculum. Study notes are preserved.",
+    );
+  }
   const labels: [Tab, string][] = [
-    ["notes", "Study notes"],
     ["assignments", "Assignments"],
-    ["resources", "Resources & deliverables"],
-    ["search", "Search"],
-    ["review", "Self-test"],
+    ["notes", "Study notes"],
+    ["runs", "Run history"],
+    ["resources", "Resources"],
+    ["deliverables", "Deliverables"],
+    ["obsidian", "Obsidian"],
+    ["review", "Review"],
     ["map", "Concept map"],
     ["weekly", "Weekly recap"],
-    ["obsidian", "Obsidian"],
-    ["runs", "History"],
-    ["settings", "Settings"],
   ];
   return (
     <div className="shell">
       <aside className="sidebar">
         <a className="brand" href="/">
-          Pursuit<span className="study-wordmark">Study Companion</span>
+          <span className="companion-wordmark">
+            <span className="pursuit-word">Pursuit</span>
+            <span className="companion-name">Study Companion</span>
+            <small>Your personal learning dashboard</small>
+          </span>
         </a>
+        <div className="sidebar-kicker">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            aria-hidden="true"
+          >
+            <rect
+              x="2"
+              y="2"
+              width="4"
+              height="4"
+              rx="1"
+              stroke="currentColor"
+            />
+            <rect
+              x="10"
+              y="2"
+              width="4"
+              height="4"
+              rx="1"
+              stroke="currentColor"
+            />
+            <rect
+              x="2"
+              y="10"
+              width="4"
+              height="4"
+              rx="1"
+              stroke="currentColor"
+            />
+            <rect
+              x="10"
+              y="10"
+              width="4"
+              height="4"
+              rx="1"
+              stroke="currentColor"
+            />
+          </svg>
+          Learning dashboard
+        </div>
         <button
-          className={`day-link ${followToday ? "selected" : ""}`}
+          className={`day-link ${viewingToday ? "selected" : ""}`}
+          disabled={!status?.today}
+          aria-current={viewingToday ? "page" : undefined}
           onClick={() => {
             setFollowToday(true);
+            if (status?.today) setDate(status.today);
+            setTab("assignments");
             setLesson(null);
             setTargetTask(null);
-            setTab("notes");
+            setTargetLine(null);
             window.history.replaceState(null, "", "/");
           }}
         >
-          Today
+          <span>
+            Today<small>Assignments & study notes</small>
+          </span>
         </button>
         <div className="sidebar-heading">
-          SAVED DAYS <span>{status?.days.length ?? 0}</span>
+          YOUR DAYS <span>{status?.days.length ?? 0}</span>
         </div>
-        <nav aria-label="Saved days">
-          {status?.days.map((value) => (
+        <select
+          className="day-sort"
+          aria-label="Sort saved days"
+          value={daySort}
+          onChange={(event) => changeDaySort(event.target.value as DaySort)}
+        >
+          <option value="oldest">Oldest first</option>
+          <option value="newest">Newest first</option>
+        </select>
+        <nav aria-label="Saved learning days">
+          {sequenceDays(status?.days ?? [], daySort).map((entry) => (
             <button
-              className={`day-link ${date === value.date ? "selected" : ""}`}
-              key={value.date}
-              onClick={() => navigate(value.date)}
+              key={entry.date}
+              className={`day-link ${entry.date === date ? "selected" : ""}`}
+              onClick={() => {
+                setFollowToday(false);
+                setDate(entry.date);
+                setLesson(null);
+                setTargetTask(null);
+                setTargetLine(null);
+                window.history.replaceState(null, "", `/?date=${entry.date}`);
+              }}
+              aria-current={entry.date === date ? "date" : undefined}
             >
               <span>
-                {value.date}
+                {dateLabel(entry.date)}
                 <small>
-                  {value.source === "fixture"
-                    ? "Offline example"
-                    : `Day ${value.day_id ?? "unknown"}`}
+                  {entry.date.slice(0, 4)} ·{" "}
+                  {entry.source === "fixture"
+                    ? "Offline fixture"
+                    : entry.day_id
+                      ? `Day ${entry.day_id}`
+                      : "Imported history"}
                 </small>
               </span>
               <span className="day-count">
-                {value.completed_count ?? 0}/{value.task_count}
+                {entry.completed_count ?? 0}/{entry.task_count}
               </span>
             </button>
           ))}
         </nav>
+        {!status?.days.length && (
+          <p className="sidebar-empty">
+            Your days appear here after syncing curriculum.
+          </p>
+        )}
         <div className="sidebar-footer">
-          Your notes stay on this computer.
-          <small>Unofficial personal study tool</small>
+          <span className="dot" />
+          Local SQLite history<small>Saved on this device</small>
         </div>
       </aside>
       <main>
         <header className="topbar">
-          <span>PURSUIT STUDY COMPANION</span>
-          <span>
-            {status?.running ? "Study import running" : "Local workspace"}
-          </span>
+          <span>BUILDER DASHBOARD / UNOFFICIAL EDITION</span>
+          <div className="topbar-controls">
+            <span className="local-badge">
+              {busy ? "Run in progress" : "Local workspace"}
+            </span>
+            <button
+              className="settings-button"
+              aria-label="Settings"
+              title="Settings"
+              aria-pressed={tab === "settings"}
+              onClick={() => {
+                setTargetTask(null);
+                setTargetLine(null);
+                setLesson(null);
+                setTab("settings");
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m9.5 3-.5 2-2 .9-1.9-.6-2.5 4.3L4 11v2l-1.4 1.4 2.5 4.3 1.9-.6 2 .9.5 2h5l.5-2 2-.9 1.9.6 2.5-4.3L20 13v-2l1.4-1.4-2.5-4.3-1.9.6-2-.9-.5-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
         </header>
+        <section
+          className={`pursuit-connection ${status?.auth?.state === "VERIFIED" ? "connected" : ["EXPIRED", "REJECTED"].includes(status?.auth?.state ?? "") ? "disconnected" : "unverified"}`}
+          aria-label="Pursuit connection"
+        >
+          <div role="status">
+            <strong>
+              {status?.auth?.state === "VERIFIED"
+                ? "Pursuit connected"
+                : status?.auth?.state === "EXPIRED"
+                  ? "Token expired"
+                  : status?.auth?.state === "REJECTED"
+                    ? "Token rejected"
+                    : "Pursuit connection"}
+            </strong>
+            <p>{status?.auth?.message ?? "Checking connection…"}</p>
+            {signInMessage && <p>{signInMessage}</p>}
+          </div>
+          <div className="actions">
+            <button disabled={pending || updating} onClick={signIn}>
+              Sign in to Pursuit
+            </button>
+            <button
+              disabled={pending || updating}
+              onClick={() =>
+                void perform(
+                  () => action("/api/auth/check"),
+                  "Connection checked.",
+                )
+              }
+            >
+              Check connection
+            </button>
+          </div>
+        </section>
         <section className="heading">
           <div>
-            <p className="eyebrow">LEARN AT YOUR OWN PACE</p>
-            <h1>{date || "Your learning library"}</h1>
-            <p>Curriculum, deeper study, and the work you complete yourself.</p>
+            <p className="eyebrow">WELCOME BACK</p>
+            <h1>
+              {viewingToday
+                ? "Today"
+                : date
+                  ? status?.today
+                    ? relativeDay(date, new Date(`${status.today}T12:00:00`))
+                    : dateLabel(date)
+                  : "Your learning, day by day."}
+            </h1>
+            <p className="subtitle">
+              {date
+                ? `${dateLabel(date)} · ${date} · Concepts, assignments, and a clear record of your progress.`
+                : "Build a lasting record of what you learned and what still needs attention."}
+            </p>
           </div>
-          <div className="heading-actions">
+          <div className="actions">
             <button
               disabled={busy || !settings?.tokenConfigured}
+              onClick={() =>
+                void perform(
+                  () => action("/api/sync"),
+                  "Checking saved and missing curriculum days…",
+                )
+              }
+            >
+              {status?.catchUp?.running ? "Syncing…" : "Sync with Pursuit"}
+            </button>
+            <button
+              disabled={busy || !settings?.tokenConfigured || !date}
               onClick={() =>
                 void perform(
                   () =>
@@ -311,13 +569,18 @@ export default function StudyCompanion() {
                 )
               }
             >
-              Fetch lessons & study notes
+              Generate this day’s study report
             </button>
           </div>
         </section>
         {error && (
           <p role="alert" className="study-alert">
             {error}
+          </p>
+        )}
+        {status?.catchUp?.message && (
+          <p className="study-notice" role="status">
+            {status.catchUp.message}
           </p>
         )}
         {notice && (
@@ -334,9 +597,12 @@ export default function StudyCompanion() {
         )}
         {updates?.state === "AVAILABLE" && (
           <div className="study-notice">
-            <strong>A new version is available.</strong>{" "}
+            <strong>
+              Version {updates.availableVersion ?? "update"} is available.
+            </strong>{" "}
             <span>
-              {updates.current?.slice(0, 7)} → {updates.target?.slice(0, 7)}
+              {updates.installedVersion ?? updates.current?.slice(0, 7)} →{" "}
+              {updates.availableVersion ?? updates.target?.slice(0, 7)}
             </span>{" "}
             <button
               disabled={busy}
@@ -353,151 +619,98 @@ export default function StudyCompanion() {
             </button>
           </div>
         )}
-        <div className="study-tabs" role="tablist" aria-label="Study tools">
-          {labels.map(([key, label]) => (
-            <button
-              key={key}
-              role="tab"
-              aria-selected={tab === key}
-              onClick={() => {
-                setTab(key);
-                setLesson(null);
-              }}
-            >
-              {label}
-            </button>
-          ))}
+        <section className="metrics">
+          <div>
+            <p>ASSIGNMENTS</p>
+            <strong>{current?.tasks.length ?? "—"}</strong>
+            <small>Recorded for this day</small>
+          </div>
+          <div>
+            <p>PURSUIT COMPLETE</p>
+            <strong>
+              {current?.tasks.filter((task) => task.completion === 1).length ??
+                "—"}
+            </strong>
+            <small>Reported by Pursuit</small>
+          </div>
+          <div>
+            <p>STUDY MATERIAL</p>
+            <strong className="study-material-status">
+              {current?.noteContent ? "notes saved" : "—"}
+            </strong>
+            <small>Markdown learning notes</small>
+          </div>
+          <div>
+            <p>RUN HISTORY</p>
+            <strong>{current?.runs.length ?? 0}</strong>
+            <small>Saved study runs</small>
+          </div>
+        </section>
+        <div className="assignment-search" role="search">
+          <input
+            type="search"
+            aria-label="Search your assignments"
+            placeholder="Search your assignments…"
+            maxLength={200}
+            value={searchQuery}
+            onFocus={() => {
+              if (searchQuery.trim()) {
+                setTargetTask(null);
+                setTargetLine(null);
+                setTab("search");
+              }
+            }}
+            onChange={(event) => {
+              const query = event.target.value;
+              setSearchQuery(query);
+              setTargetTask(null);
+              setTargetLine(null);
+              setTab(query.trim() ? "search" : "assignments");
+              setLesson(null);
+            }}
+          />
         </div>
-        <section className="panel">
+        <section className="content-panel panel">
+          <div
+            className="tabs study-tabs"
+            role="tablist"
+            aria-label="Study tools"
+          >
+            {labels.map(([key, label]) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={tab === key}
+                aria-label={label}
+                onClick={() => {
+                  setTargetTask(null);
+                  setTargetLine(null);
+                  setTab(key);
+                  setLesson(null);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {tab === "settings" && settings && (
             <div className="panel-body">
               <h2>Connect your own Pursuit account</h2>
               <p>
-                Your bearer token is stored only in the ignored local .env file.
-                Each classmate uses their own token and saved data.
+                Sign in to sync your curriculum. Your connection and study notes
+                stay on this device.
               </p>
-              <form
-                className="study-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void perform(async () => {
-                    const result = await request<Settings>("/api/settings", {
-                      ...settings,
-                      tokenConfigured: undefined,
-                      token,
-                    });
-                    setSettings(result);
-                    setToken("");
-                    setImportCohort(result.cohort);
-                    setUpdates(
-                      await request<UpdateState>("/api/updates/check", {}),
-                    );
-                  }, "Local settings saved.");
-                }}
-              >
-                <label>
-                  Pursuit bearer token
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    value={token}
-                    placeholder={
-                      settings.tokenConfigured
-                        ? "Leave blank to keep the saved token"
-                        : "Paste your own token locally"
-                    }
-                    onChange={(event) => setToken(event.target.value)}
-                  />
-                </label>
-                <label>
-                  Exact cohort name
-                  <input
-                    required
-                    value={settings.cohort}
-                    onChange={(event) =>
-                      setSettings({ ...settings, cohort: event.target.value })
-                    }
-                    placeholder="L2 - September 2026"
-                  />
-                </label>
-                <label>
-                  Verified day IDs, separated by commas
-                  <input
-                    required
-                    value={settings.dayIds}
-                    onChange={(event) =>
-                      setSettings({ ...settings, dayIds: event.target.value })
-                    }
-                    placeholder="1648"
-                  />
-                </label>
-                <label>
-                  Timezone
-                  <input
-                    required
-                    value={settings.timeZone}
-                    onChange={(event) =>
-                      setSettings({ ...settings, timeZone: event.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  Canonical GitHub repository
-                  <input
-                    type="url"
-                    value={settings.upstream}
-                    onChange={(event) =>
-                      setSettings({ ...settings, upstream: event.target.value })
-                    }
-                    placeholder="Use the original publisher repository, not your fork"
-                  />
-                </label>
-                <button disabled={busy} type="submit">
-                  Save local settings
-                </button>
-              </form>
-              <h2>Import a specific day</h2>
-              <p>
-                Use a verified day ID and its exact cohort. Imported days appear
-                in the sidebar.
+              <p role="status">
+                {status?.auth?.message ?? "Checking Pursuit connection…"}
               </p>
-              <form
-                className="study-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void perform(
-                    () =>
-                      request("/api/import", {
-                        dayId: Number(importId),
-                        cohort: importCohort,
-                      }),
-                    "Historical import started.",
-                  );
-                }}
-              >
-                <label>
-                  Day ID
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={importId}
-                    onChange={(event) => setImportId(event.target.value)}
-                  />
-                </label>
-                <label>
-                  Cohort
-                  <input
-                    required
-                    value={importCohort}
-                    onChange={(event) => setImportCohort(event.target.value)}
-                  />
-                </label>
-                <button disabled={busy || !settings.tokenConfigured}>
-                  Import curriculum & notes
-                </button>
-              </form>
+              <button disabled={busy} onClick={signIn}>
+                Sign in to Pursuit
+              </button>
+              {signInMessage && <p role="status">{signInMessage}</p>}
               <h2>App updates</h2>
+              <p>
+                Installed version: {updates?.installedVersion ?? "Checking…"}
+              </p>
               <p>{updates?.message ?? "Checking the update source…"}</p>
               {updates?.checkedAt && (
                 <p className="muted">
@@ -530,6 +743,139 @@ export default function StudyCompanion() {
                   Update & restart
                 </button>
               )}
+              <details className="advanced-settings">
+                <summary>Advanced setup</summary>
+                <p className="muted">
+                  Connection settings and manual day imports.
+                </p>
+                <form
+                  className="study-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void perform(async () => {
+                      const result = await request<Settings>("/api/settings", {
+                        ...settings,
+                        tokenConfigured: undefined,
+                        token,
+                      });
+                      setSettings(result);
+                      setToken("");
+                      setImportCohort(result.cohort);
+                      setUpdates(
+                        await request<UpdateState>("/api/updates/check", {}),
+                      );
+                    }, "Local settings saved.");
+                  }}
+                >
+                  <label>
+                    Pursuit bearer token (optional browser fallback)
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      value={token}
+                      placeholder={
+                        settings.tokenConfigured
+                          ? "Leave blank to keep the saved token"
+                          : "Leave blank to use native sign-in"
+                      }
+                      onChange={(event) => setToken(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Exact cohort name
+                    <input
+                      required
+                      value={settings.cohort}
+                      onChange={(event) =>
+                        setSettings({ ...settings, cohort: event.target.value })
+                      }
+                      placeholder="L2 - September 2026"
+                    />
+                  </label>
+                  <label>
+                    Verified day IDs, separated by commas
+                    <input
+                      required
+                      value={settings.dayIds}
+                      onChange={(event) =>
+                        setSettings({ ...settings, dayIds: event.target.value })
+                      }
+                      placeholder="1648"
+                    />
+                  </label>
+                  <label>
+                    Timezone
+                    <input
+                      required
+                      value={settings.timeZone}
+                      onChange={(event) =>
+                        setSettings({
+                          ...settings,
+                          timeZone: event.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Canonical GitHub repository
+                    <input
+                      type="url"
+                      value={settings.upstream}
+                      onChange={(event) =>
+                        setSettings({
+                          ...settings,
+                          upstream: event.target.value,
+                        })
+                      }
+                      placeholder="Use the original publisher repository, not your fork"
+                    />
+                  </label>
+                  <button disabled={busy} type="submit">
+                    Save local settings
+                  </button>
+                </form>
+                <h2>Import a specific day</h2>
+                <p>
+                  Use a verified day ID and its exact cohort. Imported days
+                  appear in the sidebar.
+                </p>
+                <form
+                  className="study-form"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void perform(
+                      () =>
+                        request("/api/import", {
+                          dayId: Number(importId),
+                          cohort: importCohort,
+                        }),
+                      "Historical import started.",
+                    );
+                  }}
+                >
+                  <label>
+                    Day ID
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={importId}
+                      onChange={(event) => setImportId(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Cohort
+                    <input
+                      required
+                      value={importCohort}
+                      onChange={(event) => setImportCohort(event.target.value)}
+                    />
+                  </label>
+                  <button disabled={busy || !settings.tokenConfigured}>
+                    Import curriculum & notes
+                  </button>
+                </form>
+              </details>
               <h2>Try an offline example</h2>
               <p>
                 No account or network needed. Example curriculum is labeled as a
@@ -550,64 +896,159 @@ export default function StudyCompanion() {
           )}
           {tab === "assignments" && (
             <div className="panel-body">
-              <div className="section-title">
-                <h2>Assignments</h2>
-                <span className="badge">Completion reported by Pursuit</span>
+              <div className="section-title assignment-toolbar">
+                <h2>Daily assignments</h2>
+                {platformDayUrl && (
+                  <a
+                    className="lesson-link"
+                    href={platformDayUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open day in Pursuit ↗
+                  </a>
+                )}
+                <span>{current?.tasks.length ?? 0} tasks</span>
               </div>
               <p className="muted">
-                Use this list to plan your work. Complete assignments in Pursuit
-                yourself.
+                Completion reflects Pursuit’s status. It does not verify that an
+                external work product exists.
               </p>
+              {current?.source === "live" && (
+                <button disabled={busy} onClick={() => void refreshDay()}>
+                  Fetch this day again
+                </button>
+              )}
               {current?.tasks.map((task) => (
                 <article
-                  className="task-row"
+                  className="task"
                   key={task.task_id}
                   id={`assignment-${task.task_id}`}
                   tabIndex={-1}
                 >
-                  <div>
+                  <span
+                    className={`task-marker ${task.completion === 1 ? "complete" : ""}`}
+                  >
+                    {task.completion === 1 ? "✓" : "·"}
+                  </span>
+                  <div className="task-text">
                     <h3>
-                      {task.protected_kind
-                        ? task.protected_kind === "ASSESSMENT"
-                          ? "Assessment — complete manually"
-                          : "Weekly Survey — complete manually"
-                        : task.title}
+                      {!task.protected_kind && platformDayUrl ? (
+                        <a
+                          className="lesson-link"
+                          href={platformDayUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open this assignment’s day in Pursuit"
+                        >
+                          {task.title}
+                        </a>
+                      ) : (
+                        task.title
+                      )}
+                      {!task.protected_kind &&
+                        parseTaskAssets(task.assets_json)?.manualRequired && (
+                          <DeliverableIcon
+                            onClick={() => {
+                              setTargetTask(task.task_id);
+                              setLesson(null);
+                              setTab("deliverables");
+                            }}
+                          />
+                        )}
+                      {!task.protected_kind &&
+                        parseTaskAssets(task.assets_json)?.resources.map(
+                          (link) => (
+                            <a
+                              key={link.url}
+                              className="resource-indicator"
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={link.label}
+                            >
+                              Resource ↗
+                            </a>
+                          ),
+                        )}
                     </h3>
-                    {!task.protected_kind && (
-                      <>
-                        <span className="badge">
-                          {task.classification?.toLowerCase()}
-                        </span>
-                        {task.content && (
-                          <details>
-                            <summary>Read lesson</summary>
+                    <p>
+                      #{task.task_id}
+                      {task.classification &&
+                        ` · ${label(task.classification)}`}
+                    </p>
+                    {!task.protected_kind &&
+                      current.noteContent &&
+                      studyTarget(current.noteContent, task.task_id) && (
+                        <button
+                          className="study-link-button"
+                          onClick={() => {
+                            setTargetTask(task.task_id);
+                            setTargetLine(null);
+                            setLesson(null);
+                            setTab("notes");
+                            window.history.replaceState(
+                              null,
+                              "",
+                              `/?date=${date}&studyTask=${task.task_id}`,
+                            );
+                          }}
+                        >
+                          view study notes
+                        </button>
+                      )}
+                    {!task.protected_kind &&
+                      (task.content || task.concept_ids) && (
+                        <details>
+                          <summary>Lesson source & concepts</summary>
+                          {task.concept_ids && (
+                            <p>
+                              Concepts:{" "}
+                              {JSON.parse(task.concept_ids).join(", ") ||
+                                "None indexed"}
+                            </p>
+                          )}
+                          {task.content && (
                             <p style={{ whiteSpace: "pre-wrap" }}>
                               {task.content}
                             </p>
-                          </details>
-                        )}
-                        {parseTaskAssets(task.assets_json) && (
-                          <TaskAssetDetails
-                            assets={parseTaskAssets(task.assets_json)!}
-                          />
-                        )}
-                      </>
-                    )}
+                          )}
+                        </details>
+                      )}
+                    {!task.protected_kind &&
+                      parseTaskAssets(task.assets_json) && (
+                        <TaskAssetDetails
+                          assets={parseTaskAssets(task.assets_json)!}
+                        />
+                      )}
                   </div>
-                  <span className="badge">
-                    {task.completion === 1
-                      ? "Complete"
-                      : task.completion === 0
-                        ? "Incomplete"
-                        : "Unknown"}
-                  </span>
+                  <div className="badges">
+                    <span
+                      className={`badge ${task.completion === 1 ? "blue" : ""}`}
+                    >
+                      {task.completion === 1
+                        ? "Complete"
+                        : task.completion === 0
+                          ? "Incomplete"
+                          : "Unknown"}
+                    </span>
+                  </div>
                 </article>
               ))}
-              {!current && (
-                <p>
-                  No curriculum saved for this date yet. Fetch today or import a
-                  verified historical day in Settings.
-                </p>
+              {!current?.tasks.length && (
+                <div className="empty">
+                  <span>▤</span>
+                  <h3>
+                    {status
+                      ? "No assignments recorded yet"
+                      : "Loading your history…"}
+                  </h3>
+                  <p>
+                    {viewingToday
+                      ? "Today’s curriculum hasn’t been loaded yet. Sync with Pursuit or generate a study report to fetch it and see assignment status here."
+                      : "No saved curriculum is available for this day."}
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -625,83 +1066,171 @@ export default function StudyCompanion() {
               )}
               {current?.noteContent ? (
                 <>
-                  <div className="section-title">
-                    <h2>Daily learning</h2>
-                    <button
-                      onClick={() =>
-                        void perform(
-                          () => copy(current.noteContent!),
-                          "Markdown copied.",
-                        )
-                      }
-                    >
-                      {copied ? "Copied" : "Copy Markdown"}
-                    </button>
+                  <div className="section-title study-toolbar">
+                    <div>
+                      <h2>Daily learning</h2>
+                      {current.source === "live" && (
+                        <p className="muted study-source-label">
+                          Saved lesson sources · {dateLabel(date)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="study-toolbar-actions">
+                      {current.source === "live" && (
+                        <button
+                          disabled={busy || !current.day_id}
+                          onClick={() => void refreshDay()}
+                        >
+                          Fetch this day again
+                        </button>
+                      )}
+                      <button
+                        onClick={() =>
+                          void perform(
+                            () =>
+                              copy(
+                                withStudyAdditions(
+                                  current.noteContent!,
+                                  current.studyAdditions ?? [],
+                                ),
+                              ),
+                            "Markdown copied.",
+                          )
+                        }
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          aria-hidden="true"
+                        >
+                          <rect x="8" y="8" width="12" height="12" rx="2" />
+                          <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+                        </svg>
+                        {copied ? "Copied" : "Copy Markdown"}
+                      </button>
+                    </div>
                   </div>
                   <article className="markdown">
-                    <ReactMarkdown
-                      skipHtml
-                      components={{
-                        img: () => null,
-                        h1: ({ node, children }) => (
-                          <h1
-                            id={`study-heading-${node?.position?.start.line}`}
-                            tabIndex={-1}
-                          >
-                            {children}
-                          </h1>
-                        ),
-                        h2: ({ node, children }) => (
-                          <h2
-                            id={`study-heading-${node?.position?.start.line}`}
-                            tabIndex={-1}
-                          >
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({ node, children }) => (
-                          <h3
-                            id={`study-heading-${node?.position?.start.line}`}
-                            tabIndex={-1}
-                          >
-                            {children}
-                            {assignmentAtHeading(
-                              current.noteContent!,
-                              node?.position?.start.line ?? 0,
-                            ) && <span />}
-                          </h3>
-                        ),
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            onClick={(event) => {
-                              if (
-                                href?.startsWith("/?") &&
-                                !event.metaKey &&
-                                !event.ctrlKey
-                              ) {
-                                event.preventDefault();
-                                const params = new URLSearchParams(
-                                  href.slice(2),
-                                );
-                                const nextDate = params.get("date");
-                                if (nextDate) {
-                                  setDate(nextDate);
-                                  setFollowToday(false);
-                                  setLesson(
-                                    Number(params.get("lesson")) || null,
-                                  );
-                                }
+                    {studySections(current.noteContent).map((section) => (
+                      <section key={`${date}-${section.key}`}>
+                        <ReactMarkdown
+                          skipHtml
+                          components={{
+                            img: () => null,
+                            h1: ({ node, children }) => (
+                              <h1
+                                id={`study-heading-${node?.position?.start.line}`}
+                                tabIndex={-1}
+                              >
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ node, children }) => (
+                              <h2
+                                id={`study-heading-${node?.position?.start.line}`}
+                                tabIndex={-1}
+                              >
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ node, children }) => {
+                              const id = assignmentAtHeading(
+                                current.noteContent!,
+                                node?.position?.start.line ?? 0,
+                              );
+                              const task = current.tasks.find(
+                                (t) => t.task_id === id && !t.protected_kind,
+                              );
+                              return (
+                                <h3
+                                  id={`study-heading-${node?.position?.start.line}`}
+                                  tabIndex={-1}
+                                >
+                                  {task ? (
+                                    <a
+                                      className="lesson-link"
+                                      href={`/?date=${date}&assignment=${task.task_id}`}
+                                      onClick={(event) => {
+                                        if (
+                                          event.metaKey ||
+                                          event.ctrlKey ||
+                                          event.shiftKey ||
+                                          event.altKey ||
+                                          event.button !== 0
+                                        )
+                                          return;
+                                        event.preventDefault();
+                                        navigate(date, task.task_id);
+                                      }}
+                                    >
+                                      {children}
+                                    </a>
+                                  ) : (
+                                    children
+                                  )}
+                                </h3>
+                              );
+                            },
+                            a: ({ href, children }) => (
+                              <a
+                                href={href}
+                                onClick={(event) => {
+                                  if (
+                                    href?.startsWith("/?") &&
+                                    !event.metaKey &&
+                                    !event.ctrlKey
+                                  ) {
+                                    event.preventDefault();
+                                    const params = new URLSearchParams(
+                                      href.slice(2),
+                                    );
+                                    const nextDate = params.get("date");
+                                    if (nextDate) {
+                                      setDate(nextDate);
+                                      setFollowToday(false);
+                                      setLesson(
+                                        Number(params.get("lesson")) || null,
+                                      );
+                                    }
+                                  }
+                                }}
+                              >
+                                {children}
+                              </a>
+                            ),
+                          }}
+                        >
+                          {"\n".repeat(section.line - 1) + section.text}
+                        </ReactMarkdown>
+                        {section.taskIds.length > 0 &&
+                          section.taskIds.every((id) =>
+                            current.tasks.some(
+                              (task) =>
+                                task.task_id === id && !task.protected_kind,
+                            ),
+                          ) && (
+                            <StudyExpansion
+                              key={`${date}-${section.key}`}
+                              date={date}
+                              section={section.key}
+                              onSaved={(items) =>
+                                setDay((previous) =>
+                                  previous?.date === date
+                                    ? { ...previous, studyAdditions: items }
+                                    : previous,
+                                )
                               }
-                            }}
-                          >
-                            {children}
-                          </a>
-                        ),
-                      }}
-                    >
-                      {current.noteContent}
-                    </ReactMarkdown>
+                              initial={(current.studyAdditions ?? []).filter(
+                                (item) => item.section === section.key,
+                              )}
+                            />
+                          )}
+                      </section>
+                    ))}
                   </article>
                   <Annotations date={date} />
                 </>
@@ -722,28 +1251,70 @@ export default function StudyCompanion() {
           {["search", "review", "map", "weekly"].includes(tab) && (
             <LearningHub
               mode={tab as LearningMode}
+              query={searchQuery}
               date={date || status?.today || ""}
               navigate={navigate}
               copyRecap={(text) => copy(text)}
               recapCopied={copied}
             />
           )}
-          {tab === "resources" && (
-            <Resources date={date} navigate={navigate} taskId={targetTask} />
+          {(tab === "resources" || tab === "deliverables") && (
+            <Resources
+              key={tab}
+              view={tab}
+              date={date}
+              navigate={navigate}
+              taskId={targetTask}
+            />
           )}
           {tab === "obsidian" && <Obsidian date={date} />}
           {tab === "runs" && (
             <div className="panel-body">
-              <h2>Study import history</h2>
-              {status?.runs.map((run) => (
-                <details key={run.id}>
+              <div className="section-title">
+                <h2>Run history</h2>
+                <span>Persistent study records</span>
+              </div>
+              {runs.map((run) => (
+                <details className="run" key={run.id}>
                   <summary>
-                    {run.date ?? "Import"} · {run.status} ·{" "}
-                    {new Date(run.started_at).toLocaleString()}
+                    <div>
+                      <strong>Study report</strong>
+                      <small>
+                        {new Date(run.started_at).toLocaleString()}
+                        {run.source ? ` · ${run.source}` : ""}
+                      </small>
+                    </div>
+                    <span className="badge">{label(run.status)}</span>
                   </summary>
-                  <pre>{run.output}</pre>
+                  {!run.finished_at && (
+                    <p className="muted">
+                      No finish was recorded. This run may be active or
+                      interrupted; inspect its status before retrying.
+                    </p>
+                  )}
+                  {run.output && (
+                    <>
+                      <button
+                        onClick={() =>
+                          void perform(
+                            () => copy(run.output!),
+                            "Report copied.",
+                          )
+                        }
+                      >
+                        {copied ? "Copied" : "Copy report"}
+                      </button>
+                      <pre>{run.output}</pre>
+                    </>
+                  )}
                 </details>
               ))}
+              {!runs.length && (
+                <div className="empty">
+                  <h3>No runs recorded</h3>
+                  <p>New study runs will be saved here.</p>
+                </div>
+              )}
             </div>
           )}
         </section>

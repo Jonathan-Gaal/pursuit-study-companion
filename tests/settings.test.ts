@@ -58,3 +58,26 @@ it.skipIf(process.platform === "win32")(
     await expect(saveSettings(folder, settings)).rejects.toThrow();
   },
 );
+
+it("preserves study AI settings without returning secrets or enabling automation", async () => {
+  const folder = await root();
+  vi.stubEnv("GEMINI_API_KEY", "synthetic-gemini-key");
+  vi.stubEnv("GEMINI_FREE_TIER_CONFIRMED", "true");
+  vi.stubEnv("GROQ_API_KEY", "synthetic-groq-key");
+  vi.stubEnv("GROQ_FREE_TIER_CONFIRMED", "true");
+  vi.stubEnv("PURSUIT_ENABLE_SUBMISSIONS", "true");
+  const result = await saveSettings(folder, settings);
+  const file = await readFile(resolve(folder, ".env"), "utf8");
+  expect(file).toContain("synthetic-gemini-key");
+  expect(file).toContain("synthetic-groq-key");
+  expect(file).not.toContain("ENABLE_SUBMISSIONS");
+  expect(JSON.stringify(result)).not.toContain("synthetic-");
+});
+
+it("allows cohort setup before native sign-in without a token", async () => {
+  vi.stubEnv("PURSUIT_TOKEN", "");
+  const folder = await root();
+  expect(
+    (await saveSettings(folder, { ...settings, token: "" })).tokenConfigured,
+  ).toBe(false);
+});
