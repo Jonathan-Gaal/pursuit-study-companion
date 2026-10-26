@@ -214,6 +214,20 @@ export default function StudyCompanion() {
     return () => clearInterval(timer);
   }, [refresh]);
   useEffect(() => {
+    const check = () => {
+      if (document.visibilityState === "visible")
+        void request<UpdateState>("/api/updates")
+          .then(setUpdates)
+          .catch(() => {});
+    };
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, []);
+  useEffect(() => {
     if (followToday && status) setDate(status.today);
   }, [followToday, status?.today]);
   useEffect(() => {
@@ -711,7 +725,18 @@ export default function StudyCompanion() {
               <p>
                 Installed version: {updates?.installedVersion ?? "Checking…"}
               </p>
+              <p>
+                Latest published version:{" "}
+                {updates?.availableVersion ??
+                  (updates?.checkedAt && updates.state === "CURRENT"
+                    ? "No published release"
+                    : "Checking…")}
+              </p>
               <p>{updates?.message ?? "Checking the update source…"}</p>
+              <p className="muted">
+                Checks when the app starts and every 30 minutes. Updates install
+                only when you click Update &amp; restart.
+              </p>
               {updates?.checkedAt && (
                 <p className="muted">
                   Last checked {new Date(updates.checkedAt).toLocaleString()}

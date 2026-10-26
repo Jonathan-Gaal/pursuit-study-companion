@@ -108,3 +108,18 @@ npm start
 Run the macOS helper build only on macOS. Inspect the journal and verify no worker
 is running before manually removing stale update/study locks. Staged installations
 and switching between prebuilt versions remain future work.
+
+## Local app distribution remains the default
+
+Students fork and clone the public repo, install Node and Git if needed, and run
+the app on their own computer using its local browser interface. No Electron
+installer or bundled browser is distributed. The unpublished installer experiment
+is archived locally and ignored by Git. Student notes and credentials remain in
+their ignored local files; the publisher’s release never includes student data.
+
+Version checks run at startup and automatically every 30 minutes while the local
+server is open. Dashboard polling and returning to the window refresh cached
+status and start a due check without waiting for GitHub. Manual Check for updates
+can check immediately. A new version is reported even when source edits block
+installation. Update & restart remains an explicit exact-commit operation from
+the canonical original repository, independent of each fork’s origin remote.

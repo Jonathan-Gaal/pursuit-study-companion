@@ -38,6 +38,8 @@ export class UpdateService {
       "The publisher has not configured the upstream GitHub repository yet.",
   };
   private checking = false;
+  private nextAutomaticCheck = 0;
+  private static readonly automaticIntervalMs = 30 * 60 * 1000;
   private repository?: string;
   private branch = "main";
   private readonly git: GitRun;
@@ -45,6 +47,7 @@ export class UpdateService {
     readonly root: string,
     git?: GitRun,
     private readonly release: ReleaseLookup = latestRelease,
+    private readonly now: () => number = Date.now,
   ) {
     this.git =
       git ??
@@ -72,10 +75,18 @@ export class UpdateService {
           )
         ).stdout.trim());
   }
+  /** A dashboard refresh never waits for GitHub and never applies an update. */
+  poll(): UpdateState {
+    if (!this.checking && this.now() >= this.nextAutomaticCheck)
+      void this.check();
+    return this.status;
+  }
   async check(): Promise<UpdateState> {
     if (this.checking) return this.status;
     this.checking = true;
+    this.nextAutomaticCheck = this.now() + UpdateService.automaticIntervalMs;
     let installedVersion: string | undefined;
+    let availableVersion: string | undefined;
     try {
       installedVersion = stableVersion(
         JSON.parse(await readFile(resolve(this.root, "package.json"), "utf8"))
@@ -102,6 +113,12 @@ export class UpdateService {
         !config.branch.includes("..")
           ? config.branch
           : "main";
+      const release = await this.release(this.repository);
+      if (release) {
+        availableVersion = stableVersion(release.version);
+        if (release.tag !== `v${availableVersion}`)
+          throw new Error("Release tag mismatch");
+      }
       // A fork's origin is deliberately never used as the release source.
       const branch = await this.git(["symbolic-ref", "--short", "HEAD"]);
       const current = hash(await this.git(["rev-parse", "HEAD"]));
@@ -112,28 +129,31 @@ export class UpdateService {
         return (this.status = {
           state: "BLOCKED",
           message:
-            "Use the release branch with no local source changes before updating.",
+            availableVersion &&
+            compareVersions(availableVersion, installedVersion) > 0
+              ? `Version ${availableVersion} is available. Local source changes or a different branch must be resolved before updating.`
+              : "Use the release branch with no local source changes before updating.",
           current,
           installedVersion,
+          availableVersion,
+          checkedAt: new Date(this.now()).toISOString(),
         });
-      const release = await this.release(this.repository);
       if (!release)
         return (this.status = {
           state: "CURRENT",
           installedVersion,
           current,
-          checkedAt: new Date().toISOString(),
+          checkedAt: new Date(this.now()).toISOString(),
           message: "No published stable release is available yet.",
         });
-      if (release.tag !== `v${stableVersion(release.version)}`)
-        throw new Error("Release tag mismatch");
       const versionOrder = compareVersions(release.version, installedVersion);
       if (versionOrder < 0)
         return (this.status = {
           state: "CURRENT",
           installedVersion,
           current,
-          checkedAt: new Date().toISOString(),
+          availableVersion,
+          checkedAt: new Date(this.now()).toISOString(),
           message:
             "Your installed version is newer than the published stable release.",
         });
@@ -179,6 +199,8 @@ export class UpdateService {
           current,
           target,
           installedVersion,
+          availableVersion,
+          checkedAt: new Date(this.now()).toISOString(),
         });
       return (this.status = {
         state: current === target ? "CURRENT" : "AVAILABLE",
@@ -187,7 +209,7 @@ export class UpdateService {
         installedVersion,
         availableVersion: release.version,
         releaseTag: release.tag,
-        checkedAt: new Date().toISOString(),
+        checkedAt: new Date(this.now()).toISOString(),
         message:
           current === target
             ? `Version ${installedVersion} is up to date.`
@@ -196,6 +218,7 @@ export class UpdateService {
     } catch {
       return (this.status = {
         installedVersion,
+        availableVersion,
         state: "ERROR",
         message:
           "Could not check GitHub. Check Git, network access and the repository configuration. Your installed app is unchanged.",

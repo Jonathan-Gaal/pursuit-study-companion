@@ -12,8 +12,9 @@ stay manual and their questions are excluded from study processing.
 Install Git and Node.js 22.13 or newer (with npm). macOS, Windows and Linux are
 supported through a local browser; a desktop installer is a future step.
 
-Fork the published GitHub repository, clone your fork, and open a terminal in
-that folder:
+Fork [the public repository](https://github.com/Jonathan-Gaal/pursuit-study-companion),
+clone your fork, and open a terminal in that folder. The app runs on your own
+computer; it is not a hosted service and does not bundle another browser:
 
 ```sh
 npm ci
@@ -80,9 +81,12 @@ The canonical release repository is configured in **updates.json**:
 `https://github.com/Jonathan-Gaal/pursuit-study-companion`. Student installs use a
 clean `main` branch. Public visibility is needed for credential-free updates.
 
-The app checks **published stable GitHub Releases**, rather than every development
-commit. Each release has a version such as `0.1.0`, an immutable-by-policy `v0.1.0`
-tag, and release notes. Settings shows installed and available versions. See
+The app automatically checks **published stable GitHub Releases** on startup
+and every 30 minutes, rather than every development commit. Returning to the app
+refreshes its cached status and starts a check if one is due. **Check for updates**
+requests an immediate check. Each release has a version such as `0.1.0`, an immutable-by-policy `v0.1.0`
+tag, and release notes. Settings shows installed and latest published versions. A newer release is
+reported even if local source edits prevent installing it. See
 [the release guide](docs/RELEASING.md) for publishing commands and checks.
 
 **Update & restart** approves the exact displayed release commit. The worker

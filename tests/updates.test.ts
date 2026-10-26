@@ -186,3 +186,60 @@ it("does not downgrade or accept republished versions with changed commits", asy
     ).state,
   ).toBe("ERROR");
 });
+
+it("checks automatically when due, keeps polling nonblocking, and rate-limits background checks", async () => {
+  let now = 0;
+  const release = vi.fn(async () => ({ version: "0.1.1", tag: "v0.1.1" }));
+  const service = new UpdateService(await root(), runner(), release, () => now);
+  expect((await service.check()).state).toBe("AVAILABLE");
+  expect(release).toHaveBeenCalledTimes(1);
+  for (let count = 0; count < 20; count++) service.poll();
+  expect(release).toHaveBeenCalledTimes(1);
+  now = 30 * 60 * 1000 - 1;
+  service.poll();
+  expect(release).toHaveBeenCalledTimes(1);
+  now++;
+  expect(service.poll().state).toBe("AVAILABLE");
+  await vi.waitFor(() =>
+    expect(service.status.checkedAt).toBe(new Date(now).toISOString()),
+  );
+  expect(release).toHaveBeenCalledTimes(2);
+  await service.check();
+  expect(release).toHaveBeenCalledTimes(3);
+});
+
+it("shows a newer published version even when local code changes block installation", async () => {
+  const git = runner({ dirty: true });
+  const service = new UpdateService(await root(), git, async () => ({
+    version: "0.1.1",
+    tag: "v0.1.1",
+  }));
+  expect(await service.check()).toMatchObject({
+    state: "BLOCKED",
+    installedVersion: "0.1.0",
+    availableVersion: "0.1.1",
+  });
+  expect(service.status.message).toContain("0.1.1 is available");
+  expect(
+    git.mock.calls.some(([args]) =>
+      ["fetch", "merge", "reset", "stash", "push"].includes(args[0]!),
+    ),
+  ).toBe(false);
+});
+
+it("does not repeatedly retry an unavailable upstream during ordinary dashboard polling", async () => {
+  const release = vi.fn(async () => {
+    throw new Error("offline");
+  });
+  const service = new UpdateService(
+    await root(),
+    runner(),
+    release,
+    () => 1000,
+  );
+  expect((await service.check()).state).toBe("ERROR");
+  for (let count = 0; count < 20; count++) service.poll();
+  expect(release).toHaveBeenCalledOnce();
+  await service.check();
+  expect(release).toHaveBeenCalledTimes(2);
+});

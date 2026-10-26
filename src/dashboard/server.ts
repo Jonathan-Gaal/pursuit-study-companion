@@ -61,6 +61,8 @@ await app.prepare();
 const handle = app.getRequestHandler();
 const updates = new UpdateService(root);
 void updates.check(); // Opening the app checks upstream, but never applies code automatically.
+const updateTimer = setInterval(() => updates.poll(), 60_000);
+updateTimer.unref();
 let running: string | null = null;
 let updating = false;
 async function busy(skipSync = false) {
@@ -178,7 +180,7 @@ const server = createServer(async (req, res) => {
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/updates") {
-      json(200, updates.status);
+      json(200, updates.poll());
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/updates/check") {

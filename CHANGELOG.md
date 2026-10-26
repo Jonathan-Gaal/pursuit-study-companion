@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-10-26
+
+- Automatically check the publisher’s stable release on startup and every 30 minutes, without blocking the dashboard.
+- Show installed and latest published versions, including when local source edits block installation.
+- Refresh cached update status when returning to the app, with rate-limited background checks.
+- Update runtime and testing dependencies to patched versions.
+- Keep the fork-and-clone local app; no Electron installer or bundled browser.
+
 ## 0.1.1 — 2026-10-26
 
 - Reject symlinked study notes explicitly on Windows as well as macOS/Linux.
