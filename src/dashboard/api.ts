@@ -1,3 +1,7 @@
+import {
+  inspectObsidianDestination,
+  validateObsidianVault,
+} from "../learning/obsidianVault.js";
 import type { DashboardAuth } from "./auth.js";
 import {
   expandStudy,
@@ -107,6 +111,39 @@ export async function dashboardApi(req: Request, deps: Dependencies) {
           "Could not verify and save the Pursuit token. Sign in again or check your connection.",
       });
     }
+  }
+  if (
+    req.method === "POST" &&
+    url.pathname === "/api/obsidian/vault/validate"
+  ) {
+    if (
+      url.search ||
+      !deps.readJson ||
+      !/^application\/json\b/i.test(String(req.headers["content-type"] ?? ""))
+    )
+      return response(400, { error: "A local JSON request is required." });
+
+    let input: unknown;
+    try {
+      input = await deps.readJson();
+    } catch {
+      return response(400, { error: "Invalid vault folder request." });
+    }
+    const path = await validateObsidianVault(
+      (input as { path?: unknown } | null)?.path,
+    );
+    if (!path)
+      return response(400, {
+        error:
+          "Enter the full path to a readable Obsidian vault folder containing .obsidian.",
+      });
+    const destination = await inspectObsidianDestination(path);
+    if (!destination)
+      return response(409, {
+        error:
+          "Pursuit and Pursuit/Daily must be regular folders or must not exist yet.",
+      });
+    return response(200, { path, destination });
   }
   if (
     ["GET", "POST"].includes(req.method ?? "") &&

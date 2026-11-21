@@ -1,8 +1,10 @@
 "use client";
+import ObsidianVaultSetup from "./ObsidianVaultSetup";
 import { useEffect, useState } from "react";
 import type { obsidianExport } from "../../src/learning/obsidian";
 type Preview = Awaited<ReturnType<typeof obsidianExport>>;
 export default function Obsidian({ date }: { date: string }) {
+  const [destination, setDestination] = useState("");
   const [scope, setScope] = useState("all");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState("");
@@ -57,6 +59,7 @@ export default function Obsidian({ date }: { date: string }) {
         prepare a ZIP on this computer. No vault connection or automatic sync is
         enabled.
       </p>
+      <ObsidianVaultSetup onDestinationChange={setDestination} />
       <div className="resource-filters">
         <label>
           Export
@@ -89,12 +92,31 @@ export default function Obsidian({ date }: { date: string }) {
             </p>
           ))}
           <details className="deliverable-expectations">
-            <summary>Preview export files</summary>
+            <summary>
+              {destination
+                ? "Preview notes and vault paths"
+                : "Preview export files"}
+            </summary>
             <ul>
               {preview.files.map((file) => (
                 <li key={file.path}>
                   <details>
-                    <summary>{file.path}</summary>
+                    <summary className="export-path">
+                      {destination &&
+                      file.path !== "Pursuit/Import instructions.md"
+                        ? destination +
+                          file.path
+                            .slice("Pursuit".length)
+                            .replaceAll(
+                              "/",
+                              destination.includes("\\") ? "\\" : "/",
+                            )
+                        : file.path}
+                      {destination &&
+                      file.path === "Pursuit/Import instructions.md"
+                        ? " (ZIP only)"
+                        : ""}
+                    </summary>
                     <pre className="obsidian-preview">{file.content}</pre>
                   </details>
                 </li>
