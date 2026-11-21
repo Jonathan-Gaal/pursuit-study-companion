@@ -1,10 +1,22 @@
 "use client";
+
 import ObsidianVaultSetup from "./ObsidianVaultSetup";
 import { useEffect, useState } from "react";
 import type { obsidianExport } from "../../src/learning/obsidian";
+import type { syncObsidianNotes } from "../../src/learning/obsidianVault";
+type SyncResult = Awaited<ReturnType<typeof syncObsidianNotes>> & {
+  warnings: string[];
+};
 type Preview = Awaited<ReturnType<typeof obsidianExport>>;
 export default function Obsidian({ date }: { date: string }) {
-  const [destination, setDestination] = useState("");
+  const [vault, setVault] = useState<{
+    path: string;
+    destination: string;
+  } | null>(null);
+  const destination = vault?.destination;
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [syncError, setSyncError] = useState("");
   const [scope, setScope] = useState("all");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState("");
@@ -30,6 +42,32 @@ export default function Obsidian({ date }: { date: string }) {
       });
     return () => controller.abort();
   }, [endpoint]);
+  async function sync() {
+    if (!vault) return;
+    setSyncing(true);
+    setSyncError("");
+    setSyncResult(null);
+    try {
+      const response = await fetch("/api/obsidian/vault/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path: vault.path,
+          date: scope === "selected" ? date : undefined,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      setSyncResult(result);
+    } catch (error) {
+      setSyncError(
+        error instanceof Error ? error.message : "Could not sync saved notes.",
+      );
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   async function prepare() {
     setPending(true);
     setError("");
@@ -52,21 +90,30 @@ export default function Obsidian({ date }: { date: string }) {
     <div className="panel-body">
       <div className="section-title">
         <h2>Obsidian export</h2>
-        <span className="badge">Not connected</span>
+        <span className="badge">{vault ? "Vault ready" : "Not connected"}</span>
       </div>
       <p className="muted">
-        Your notes are ready for Obsidian whenever you are. Preview them here or
-        prepare a ZIP on this computer. No vault connection or automatic sync is
-        enabled.
+        Preview the Markdown, sync daily notes to a vault, or prepare a ZIP.
       </p>
-      <ObsidianVaultSetup onDestinationChange={setDestination} />
+      <ObsidianVaultSetup
+        syncing={syncing}
+        onDestinationChange={(selection) => {
+          setVault(selection);
+          setSyncResult(null);
+          setSyncError("");
+        }}
+      />
       <div className="resource-filters">
         <label>
           Export
           <select
-            disabled={pending}
+            disabled={pending || syncing}
             value={scope}
-            onChange={(event) => setScope(event.target.value)}
+            onChange={(event) => {
+              setScope(event.target.value);
+              setSyncResult(null);
+              setSyncError("");
+            }}
           >
             <option value="all">All saved study notes</option>
             <option value="selected">Selected day · {date}</option>
@@ -86,6 +133,59 @@ export default function Obsidian({ date }: { date: string }) {
           >
             {pending ? "Preparing…" : "Prepare Obsidian ZIP"}
           </button>
+          {vault && (
+            <div className="task-assets">
+              <p>
+                Sync adds missing daily notes. Existing notes with different
+                contents are reported as conflicts and kept as they are.
+              </p>
+              <button
+                disabled={syncing || !preview.noteCount}
+                onClick={() => void sync()}
+              >
+                {syncing ? "Syncing…" : "Sync daily notes"}
+              </button>
+              {syncError && <p role="alert">{syncError}</p>}
+              {syncResult && (
+                <div role="status">
+                  <p>
+                    {syncResult.created} added · {syncResult.unchanged} already
+                    up to date
+                  </p>
+                  {syncResult.notes.length > 0 && (
+                    <details open={syncResult.notes.length === 1}>
+                      <summary>Synced notes</summary>
+                      <ul>
+                        {syncResult.notes.map((note) => (
+                          <li key={note.path}>
+                            <a href={note.uri}>
+                              Open in Obsidian ·{" "}
+                              {note.path.slice("Pursuit/Daily/".length, -3)}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                  {[
+                    ...syncResult.conflicts.map((file) => `Conflict — ${file}`),
+                    ...syncResult.failed.map(
+                      (file) => `Could not sync — ${file}`,
+                    ),
+                  ].map((message) => (
+                    <p key={message} className="export-path">
+                      {message}
+                    </p>
+                  ))}
+                  {syncResult.warnings
+                    .filter((warning) => !preview.warnings.includes(warning))
+                    .map((warning) => (
+                      <p key={warning}>{warning}</p>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
           {preview.warnings.map((warning) => (
             <p className="muted" key={warning}>
               {warning}
@@ -102,8 +202,7 @@ export default function Obsidian({ date }: { date: string }) {
                 <li key={file.path}>
                   <details>
                     <summary className="export-path">
-                      {destination &&
-                      file.path !== "Pursuit/Import instructions.md"
+                      {destination && file.path.startsWith("Pursuit/Daily/")
                         ? destination +
                           file.path
                             .slice("Pursuit".length)
@@ -112,8 +211,7 @@ export default function Obsidian({ date }: { date: string }) {
                               destination.includes("\\") ? "\\" : "/",
                             )
                         : file.path}
-                      {destination &&
-                      file.path === "Pursuit/Import instructions.md"
+                      {destination && !file.path.startsWith("Pursuit/Daily/")
                         ? " (ZIP only)"
                         : ""}
                     </summary>

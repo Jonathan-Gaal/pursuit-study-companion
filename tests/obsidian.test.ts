@@ -4,11 +4,13 @@ import {
   mkdir,
   writeFile,
   readFile,
+  realpath,
   rm,
   symlink,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { dashboardApi } from "../src/dashboard/api.js";
 import { HistoryStore } from "../src/history/store.js";
 import { emptyState } from "../src/state/store.js";
 import {
@@ -115,6 +117,89 @@ describe("optional Obsidian export", () => {
       await expect(prepareObsidianArchive(root, [])).rejects.toThrow(
         "Unsafe export directory",
       );
+    } finally {
+      history.close();
+    }
+  });
+});
+
+describe("manual Obsidian sync", () => {
+  it("validates without writing, syncs the selected note, and preserves conflicts on retry", async () => {
+    const { root, history } = await workspace();
+    try {
+      const date = "2026-10-06";
+      const vault = join(root, "My Vault & café");
+      const target = join(vault, "Pursuit", "Daily", `${date}.md`);
+      await mkdir(join(vault, ".obsidian"), { recursive: true });
+      await writeFile(
+        join(root, "study-notes", `${date}.md`),
+        "# Daily Learning",
+      );
+
+      const request = async (
+        action: string,
+        path = vault,
+        requestedDate = date,
+      ) => {
+        const result = await dashboardApi(
+          {
+            method: "POST",
+            url: `/api/obsidian/vault/${action}`,
+            headers: {
+              host: "localhost:4782",
+              origin: "http://localhost:4782",
+              "content-type": "application/json",
+            },
+          },
+          {
+            root,
+            history,
+            port: 4782,
+            active: async () => null,
+            progress: async () => null,
+            start: async () => false,
+            readJson: async () => ({ path, date: requestedDate }),
+          },
+        );
+        if (!result) throw new Error("Obsidian API route was not handled.");
+        return result;
+      };
+
+      expect((await request("validate")).status).toBe(200);
+      await expect(readFile(target)).rejects.toMatchObject({ code: "ENOENT" });
+      expect((await request("sync", root)).status).toBe(400);
+      expect((await request("sync", vault, "../note")).status).toBe(400);
+      const outside = join(root, "outside");
+      await mkdir(outside);
+      await symlink(outside, join(vault, "Pursuit"), "junction");
+      expect((await request("sync")).status).toBe(409);
+      await rm(join(vault, "Pursuit"), { recursive: true });
+
+      const runs = await Promise.all([request("sync"), request("sync")]);
+      expect(runs.map((run) => run.status)).toEqual([200, 200]);
+      expect(
+        runs.map((run) => (run.body as { created: number }).created).sort(),
+      ).toEqual([0, 1]);
+      expect((await request("sync")).body).toMatchObject({
+        created: 0,
+        unchanged: 1,
+        notes: [
+          {
+            path: `Pursuit/Daily/${date}.md`,
+            uri: `obsidian://open?path=${encodeURIComponent(await realpath(target))}`,
+          },
+        ],
+      });
+      expect(await readFile(target, "utf8")).toContain("# Daily Learning");
+      await writeFile(target, "Edited in Obsidian");
+      expect((await request("sync")).body).toMatchObject({
+        created: 0,
+        unchanged: 0,
+        conflicts: [`Pursuit/Daily/${date}.md`],
+        failed: [],
+        notes: [],
+      });
+      expect(await readFile(target, "utf8")).toBe("Edited in Obsidian");
     } finally {
       history.close();
     }

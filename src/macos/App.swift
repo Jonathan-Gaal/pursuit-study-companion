@@ -75,6 +75,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
     }
 
+    private func openObsidianLink(_ url: URL, from action: WKNavigationAction) {
+        guard action.navigationType == .linkActivated,
+              action.sourceFrame.isMainFrame,
+              let source = action.sourceFrame.request.url, isDashboardURL(source),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.host == "open", components.path.isEmpty,
+              components.user == nil, components.password == nil,
+              components.port == nil, components.fragment == nil,
+              let query = components.queryItems, query.count == 1,
+              query[0].name == "path", let path = query[0].value,
+              path.hasPrefix("/"), path.hasSuffix(".md") else { return }
+
+        if !NSWorkspace.shared.open(url) {
+            showError("Could not open the note. Check that Obsidian is installed.")
+        }
+    }
+
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else {
@@ -87,6 +104,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         if isDashboardURL(url) {
             decisionHandler(.allow)
+        } else if url.scheme == "obsidian" {
+            decisionHandler(.cancel)
+            openObsidianLink(url, from: navigationAction)
         } else {
             openExternalLink(url)
             decisionHandler(.cancel)
@@ -102,6 +122,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, 
         }
         if isDashboardURL(url) {
             webView.load(URLRequest(url: url))
+        } else if url.scheme == "obsidian" {
+            openObsidianLink(url, from: navigationAction)
         } else {
             openExternalLink(url)
         }

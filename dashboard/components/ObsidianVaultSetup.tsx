@@ -4,8 +4,12 @@ import { useState, type FormEvent } from "react";
 
 export default function ObsidianVaultSetup({
   onDestinationChange,
+  syncing,
 }: {
-  onDestinationChange: (destination: string) => void;
+  syncing: boolean;
+  onDestinationChange: (
+    vault: { path: string; destination: string } | null,
+  ) => void;
 }) {
   const [folder, setFolder] = useState("");
   const [validated, setValidated] = useState("");
@@ -17,7 +21,7 @@ export default function ObsidianVaultSetup({
     setPending(true);
     setError("");
     setValidated("");
-    onDestinationChange("");
+    onDestinationChange(null);
     try {
       const response = await fetch("/api/obsidian/vault/validate", {
         method: "POST",
@@ -27,7 +31,7 @@ export default function ObsidianVaultSetup({
       const result = await response.json();
       if (response.ok) {
         setValidated(result.destination);
-        onDestinationChange(result.destination);
+        onDestinationChange(result);
       } else {
         setError(result.error);
       }
@@ -50,7 +54,7 @@ export default function ObsidianVaultSetup({
           <label>
             Vault folder path
             <input
-              disabled={pending}
+              disabled={pending || syncing}
               required
               maxLength={4096}
               placeholder="~/Documents/My Vault"
@@ -58,13 +62,13 @@ export default function ObsidianVaultSetup({
               onChange={(event) => {
                 setFolder(event.target.value);
                 setValidated("");
-                onDestinationChange("");
+                onDestinationChange(null);
                 setError("");
               }}
             />
           </label>
         </div>
-        <button disabled={pending || !folder.trim()}>
+        <button disabled={pending || syncing || !folder.trim()}>
           {pending ? "Checking…" : "Validate vault folder"}
         </button>
       </form>
@@ -73,6 +77,16 @@ export default function ObsidianVaultSetup({
         <div role="status">
           <p>Validated destination for Pursuit notes</p>
           <p className="export-path">{validated}</p>
+          <button
+            disabled={syncing}
+            onClick={() => {
+              setValidated("");
+              setFolder("");
+              onDestinationChange(null);
+            }}
+          >
+            Disconnect vault
+          </button>
         </div>
       )}
     </details>
