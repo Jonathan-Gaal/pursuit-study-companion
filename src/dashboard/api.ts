@@ -1,3 +1,8 @@
+import {
+  inspectObsidianDestination,
+  syncObsidianNotes,
+  validateObsidianVault,
+} from "../learning/obsidianVault.js";
 import type { DashboardAuth } from "./auth.js";
 import {
   expandStudy,
@@ -105,6 +110,62 @@ export async function dashboardApi(req: Request, deps: Dependencies) {
       return response(400, {
         error:
           "Could not verify and save the Pursuit token. Sign in again or check your connection.",
+      });
+    }
+  }
+  if (
+    req.method === "POST" &&
+    ["/api/obsidian/vault/validate", "/api/obsidian/vault/sync"].includes(
+      url.pathname,
+    )
+  ) {
+    if (
+      url.search ||
+      !deps.readJson ||
+      !/^application\/json\b/i.test(String(req.headers["content-type"] ?? ""))
+    )
+      return response(400, { error: "A local JSON request is required." });
+
+    const syncing = url.pathname.endsWith("/sync");
+    let input: { path?: unknown; date?: unknown } | null;
+    try {
+      input = (await deps.readJson()) as typeof input;
+    } catch {
+      return response(400, { error: "Invalid vault folder request." });
+    }
+    const date = input?.date;
+    if (
+      syncing &&
+      date !== undefined &&
+      (typeof date !== "string" || !validDate(date) || !deps.history.day(date))
+    )
+      return response(400, { error: "Choose a saved day." });
+    const path = await validateObsidianVault(input?.path);
+    if (!path)
+      return response(400, {
+        error:
+          "Enter the full path to a readable Obsidian vault folder containing .obsidian.",
+      });
+    const destination = await inspectObsidianDestination(path);
+    if (!destination)
+      return response(409, {
+        error:
+          "Pursuit and Pursuit/Daily must be regular folders or must not exist yet.",
+      });
+    if (!syncing) return response(200, { path, destination });
+    try {
+      const exported = await obsidianExport(
+        deps.root,
+        deps.history,
+        typeof date === "string" ? date : undefined,
+      );
+      if (!exported.noteCount)
+        return response(409, { error: "No saved study notes to sync." });
+      const result = await syncObsidianNotes(path, exported.files);
+      return response(200, { ...result, warnings: exported.warnings });
+    } catch {
+      return response(409, {
+        error: "Could not prepare the vault destination for sync.",
       });
     }
   }
